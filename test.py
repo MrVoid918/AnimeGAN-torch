@@ -1,0 +1,11 @@
+#import sys
+#sys.path.append('./model')      #Quick way to bypass
+'''
+from model.discriminator import Discriminator
+from model.generator import Generator
+import init_train
+'''
+
+from optim.omd import OptimisticAdam
+from model.discriminator import Discriminator
+from model.generator import Generator

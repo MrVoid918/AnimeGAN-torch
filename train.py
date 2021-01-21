@@ -1,5 +1,6 @@
-import sys
-sys.path.append('model')
+#import sys
+#sys.path.append('model')
+
 from PIL import Image
 import datetime
 from pathlib import Path
@@ -15,8 +16,8 @@ import torch.optim as optim
 
 from weights_init import weights_init
 from init_train import init_train
-from generator import Generator
-from discriminator import Discriminator
+from model.generator import Generator
+from model.discriminator import Discriminator
 from dataset import Dataset
 from loss import VGGLosses
 

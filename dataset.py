@@ -50,7 +50,7 @@ class Dataset(VisionDataset):
                          target_transform = smooth_transform)
 
         # Prepare dataset
-        samples = make_dataset(root)
+        self.samples = make_dataset(root)
 
         self.train_pic = list(Path('./dataset/train_photo').resolve().glob('**/*'))
         self.train_dataset_size = len(self.train_pic)

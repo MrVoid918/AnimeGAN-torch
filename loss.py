@@ -1,5 +1,6 @@
 import torch.nn as nn
-from torchvision import transfroms, models
+import torchvision.transforms as transforms
+import torchvision.models as models
 import torch
 import torch.nn.functional as F
 
@@ -114,7 +115,7 @@ class VGGLosses(nn.Module):
       loss = F.l1_loss(input, target) * weight
       weight *= 2.
       input = F.relu(input)   #we manually pass convolved image thorugh relu, instead of passing through blocks
-      input = F.relu(target)  #this is because it is set to inplace, hence will cause error
+      target = F.relu(target)  #this is because it is set to inplace, hence will cause error
       total_loss += loss
 
     return total_loss
@@ -128,3 +129,8 @@ class VGGLosses(nn.Module):
     loss += F.smooth_l1_loss(input[:, 1:], target[:, 1:])
 
     return loss
+
+  def total_variation_loss(self, input):
+    reg_loss = torch.sum(torch.abs(input[:, :, :, :-1] - input[:, :, :, 1:])) + \
+    torch.sum(torch.abs(input[:, :, :-1, :] - input[:, :, 1:, :]))
+    return reg_loss

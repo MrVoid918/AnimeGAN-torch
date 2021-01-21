@@ -1,4 +1,4 @@
-from layers import *
+from model.layers import *         #Import layers from layers.py, quick fix
 import torch.nn as nn
 
 class Discriminator(nn.Module):

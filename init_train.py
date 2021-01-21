@@ -48,21 +48,17 @@ def init_train(init_train_epoch : int = 1,
 
     writer.add_scalar("Loss : {}".format(current_time) , total_loss.item(), epoch)
 
+    for name, weight in G.named_parameters():
+        writer.add_histogram(f"{name} {current_time}", weight, epoch)
+        writer.add_histogram(f"{name}.grad {current_time}", weight.grad, epoch)
+        writer.flush()
+
     G.eval()
 
     styled_test_img = transform(test_img).unsqueeze(0).to(device)
     with torch.no_grad():
       styled_test_img = G(styled_test_img)
       styled_test_img = styled_test_img.to('cpu').squeeze()
-
-    '''
-    plt.figure(figsize=(10, 10))
-    plt.subplot(221)
-    plt.imshow(test_img)
-    plt.subplot(222)
-    plt.imshow(simple_denorm(styled_test_img.to('cpu')).squeeze().permute(1, 2, 0))
-    plt.show()
-    '''
     write_image(writer, styled_test_img, 'reconstructed img {}'.format(current_time), epoch + 1)
     writer.flush()
     G.train()
