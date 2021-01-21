@@ -5,52 +5,54 @@ import os       #Will fix to consistently use pathlib only
 from torchvision.datasets.vision import VisionDataset
 from torchvision.datasets.folder import default_loader
 
-def make_dataset(root: str) -> list:
-    """Reads a directory with data.
-    Returns a dataset as a list of tuples of paired image paths: (style_path, smooth_path)
-    """
-    dataset = []
-
-    # Our dir names
-    style_dir = 'style'
-    smooth_dir = 'smooth'
-    #root_dir = Path(root).resolve()
-
-    # Get all the filenames from RGB folder
-    style_fnames = sorted(os.listdir(os.path.join(root, style_dir)))
-    #style_fnames = sorted(root_dir.joinpath(style_dir).iterdir())
-
-    # Compare file names from style folder to file names from smooth:
-    for smooth_fname in sorted(os.listdir(os.path.join(root, smooth_dir))): #sorted(list(root_dir.joinpath(smooth_dir).iterdir()))
-
-            #if smooth_fname.name in
-            if smooth_fname in style_fnames:
-                # if we have a match - create pair of full path to the corresponding images
-                style_path = os.path.join(root, style_dir, smooth_fname)
-                smooth_path = os.path.join(root, smooth_dir, smooth_fname)
-
-                item = (style_path, smooth_path)
-                # append to the list dataset
-                dataset.append(item)
-            else:
-                continue
-
-    return dataset
-
 class Dataset(VisionDataset):
     '''https://stackoverflow.com/a/59471851'''
+
+    @staticmethod
+    def make_dataset(root: str) -> list:
+        """Reads a directory with data.
+        Returns a dataset as a list of tuples of paired image paths: (style_path, smooth_path)
+        """
+        dataset = []
+
+        # Our dir names
+        style_dir = 'style'
+        smooth_dir = 'smooth'
+        #root_dir = Path(root).resolve()
+
+        # Get all the filenames from RGB folder
+        style_fnames = sorted(os.listdir(os.path.join(root, style_dir)))
+        #style_fnames = sorted(root_dir.joinpath(style_dir).iterdir())
+
+        # Compare file names from style folder to file names from smooth:
+        for smooth_fname in sorted(os.listdir(os.path.join(root, smooth_dir))): #sorted(list(root_dir.joinpath(smooth_dir).iterdir()))
+
+                #if smooth_fname.name in
+                if smooth_fname in style_fnames:
+                    # if we have a match - create pair of full path to the corresponding images
+                    style_path = os.path.join(root, style_dir, smooth_fname)
+                    smooth_path = os.path.join(root, smooth_dir, smooth_fname)
+
+                    item = (style_path, smooth_path)
+                    # append to the list dataset
+                    dataset.append(item)
+                else:
+                    continue
+
+        return dataset
+
     def __init__(self,
                  root : str,
-                 loader=default_loader,
-                 style_transform=None,
-                 smooth_transform=None):
+                 loader = default_loader,
+                 style_transform = None,
+                 smooth_transform = None):
 
         super().__init__(root,
                          transform = style_transform,
                          target_transform = smooth_transform)
 
         # Prepare dataset
-        self.samples = make_dataset(root)
+        samples = Dataset.make_dataset(root)
 
         self.train_pic = list(Path('./dataset/train_photo').resolve().glob('**/*'))
         self.train_dataset_size = len(self.train_pic)
