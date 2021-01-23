@@ -4,15 +4,16 @@ from optim.extragradient import ExtraAdam
 
 "https://howto.lintel.in/python-__new__-magic-method-explained/"
 
+
 class GANOptimizer(optim.Optimizer):
 
     def __new__(cls, optim_type, *args, **kwargs):
         OPTIM_TYPE_MAP = {
-            'SGD' : optim.SGD,
-            'RMS' : optim.RMSprop,
-            'ADAM' : optim.Adam,
-            'OADAM' : OptimisticAdam,
-            'XADAM' : ExtraAdam
+            'SGD': optim.SGD,
+            'RMS': optim.RMSprop,
+            'ADAM': optim.Adam,
+            'OADAM': OptimisticAdam,
+            'XADAM': ExtraAdam
         }
 
         if optim_type not in OPTIM_TYPE_MAP:

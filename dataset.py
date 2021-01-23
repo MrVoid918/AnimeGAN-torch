@@ -1,9 +1,10 @@
 from pathlib import Path
 import random
-import os       #Will fix to consistently use pathlib only
+import os  # Will fix to consistently use pathlib only
 
 from torchvision.datasets.vision import VisionDataset
 from torchvision.datasets.folder import default_loader
+
 
 class Dataset(VisionDataset):
     '''https://stackoverflow.com/a/59471851'''
@@ -25,31 +26,32 @@ class Dataset(VisionDataset):
         #style_fnames = sorted(root_dir.joinpath(style_dir).iterdir())
 
         # Compare file names from style folder to file names from smooth:
-        for smooth_fname in sorted(os.listdir(os.path.join(root, smooth_dir))): #sorted(list(root_dir.joinpath(smooth_dir).iterdir()))
+        # sorted(list(root_dir.joinpath(smooth_dir).iterdir()))
+        for smooth_fname in sorted(os.listdir(os.path.join(root, smooth_dir))):
 
-                #if smooth_fname.name in
-                if smooth_fname in style_fnames:
-                    # if we have a match - create pair of full path to the corresponding images
-                    style_path = os.path.join(root, style_dir, smooth_fname)
-                    smooth_path = os.path.join(root, smooth_dir, smooth_fname)
+            # if smooth_fname.name in
+            if smooth_fname in style_fnames:
+                # if we have a match - create pair of full path to the corresponding images
+                style_path = os.path.join(root, style_dir, smooth_fname)
+                smooth_path = os.path.join(root, smooth_dir, smooth_fname)
 
-                    item = (style_path, smooth_path)
-                    # append to the list dataset
-                    dataset.append(item)
-                else:
-                    continue
+                item = (style_path, smooth_path)
+                # append to the list dataset
+                dataset.append(item)
+            else:
+                continue
 
         return dataset
 
     def __init__(self,
-                 root : str,
-                 loader = default_loader,
-                 style_transform = None,
-                 smooth_transform = None):
+                 root: str,
+                 loader=default_loader,
+                 style_transform=None,
+                 smooth_transform=None):
 
         super().__init__(root,
-                         transform = style_transform,
-                         target_transform = smooth_transform)
+                         transform=style_transform,
+                         target_transform=smooth_transform)
 
         # Prepare dataset
         samples = Dataset.make_dataset(root)

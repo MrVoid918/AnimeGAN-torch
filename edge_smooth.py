@@ -4,7 +4,7 @@ import cv2
 import argparse
 import tqdm
 
-def make_edge_smooth(dataset_name : str, img_size : int) :
+def make_edge_smooth(dataset_name : str = "Shinkai", img_size : int = 256) :
 
     file_list = Path('./dataset/{}/style'.format(dataset_name)).resolve()
     save_dir = Path('./dataset/{}/smooth'.format(dataset_name)).resolve()

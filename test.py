@@ -6,13 +6,11 @@ from model.generator import Generator
 import init_train
 '''
 
-from optim.omd import OptimisticAdam
-from model.discriminator import Discriminator
-from model.generator import Generator
-from optimizers import GANOptimizer
-import torch.optim as optim
+from trial import Trial
+import torch
 
-G = Generator()
+torch.backends.cudnn.benchmark = True
 
-print(op)
-print(op1)
+if __name__ == '__main__':
+    trial = Trial()
+    trial.train()
