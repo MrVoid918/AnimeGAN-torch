@@ -50,10 +50,10 @@ class Trial:
 
         self.init_model_weights()
 
-        self.optimizer_G = GANOptimizer("ADAM", self.G.parameters(), lr=G_lr, betas=(0.5, 0.999))
-        self.optimizer_D = GANOptimizer("ADAM", self.D.parameters(), lr=D_lr, betas=(0.5, 0.999))
+        self.optimizer_G = GANOptimizer("ADAM", self.G.parameters(), lr=G_lr, betas=(0.5, 0.999), amsgrad = True)
+        self.optimizer_D = GANOptimizer("ADAM", self.D.parameters(), lr=D_lr, betas=(0.5, 0.999), amsgrad = True)
 
-        self.vggloss = VGGLosses(device=device).to(device)
+        self.vggloss = VGGLosses(device=self.device).to(self.device)
 
         self.init_lr = init_lr
         self.G_lr = G_lr
@@ -111,12 +111,12 @@ class Trial:
                 self.writer.add_histogram(f"{name}.grad {self.init_time}", weight.grad, epoch)
                 self.writer.flush()
 
-            eval_image(epoch, self.init_time)
+            self.eval_image(epoch, self.init_time, test_img)
 
         for g in optimizer_G.param_groups:
             g['lr'] = 0.0002
 
-        save_trial(self.init_training_epoch, "init")
+        self.save_trial(self.init_training_epoch, "init")
 
     def eval_image(self, epoch: int, current_time, img):
         self.G.eval()
@@ -214,7 +214,7 @@ class Trial:
                     f"Generator {name}.grad {self.init_time}", weight.grad, epoch)
                 self.writer.flush()
 
-            G.eval()
+            self.G.eval()
 
             styled_test_img = transform(test_img).unsqueeze(0).to(device)
             with torch.no_grad():
