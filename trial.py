@@ -18,7 +18,7 @@ from weights_init import weights_init
 from model.discriminator import PatchDiscriminator
 from model.generator import Generator
 from optimizers import GANOptimizer
-from loss import VGGLosses
+from loss import Loss
 
 
 class Trial:
@@ -192,8 +192,6 @@ class Trial:
                     gen_loss = gen_adv_loss + per_loss
                     gen_loss.backward()
                 self.optimizer_G.step()
-
-                print(i)
 
                 if i % 200 == 0 and i != 0:
                     self.writer.add_scalars(f'generator losses  {self.init_time}',

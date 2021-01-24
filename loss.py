@@ -2,6 +2,7 @@
 import torchvision.transforms as transforms
 import torchvision.models as models
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 import kornia
@@ -13,7 +14,7 @@ import kornia
 class Loss(nn.Module):
 
     def __init__(self, resize=False, normalize_mean_std=True, device='cpu'):
-        super(VGGLosses, self).__init__()
+        super(Loss, self).__init__()
 
         self.model = models.vgg19(pretrained=True).features[:26].to(
             device).eval()  # features[:26] get to conv4_4

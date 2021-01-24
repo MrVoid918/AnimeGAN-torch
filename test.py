@@ -12,5 +12,5 @@ import torch
 torch.backends.cudnn.benchmark = True
 
 if __name__ == '__main__':
-    trial = Trial()
-    trial.train()
+    trial = Trial(device = 'cpu', batch_size = 32,)
+    trial.init_train()
