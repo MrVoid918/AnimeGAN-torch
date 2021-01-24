@@ -25,6 +25,7 @@ class Trial:
 
     def __init__(self,
                  data_dir: str = './dataset',
+                 log_dir : str = './logs',
                  device="cuda:0",
                  batch_size = 2,
                  init_lr: float = 0.05,
@@ -54,13 +55,13 @@ class Trial:
         self.optimizer_G = GANOptimizer("ADAM", self.G.parameters(), lr=G_lr, betas=(0.5, 0.999), amsgrad = True)
         self.optimizer_D = GANOptimizer("ADAM", self.D.parameters(), lr=D_lr, betas=(0.5, 0.999), amsgrad = True)
 
-        self.vggloss = VGGLosses(device=self.device).to(self.device)
+        self.vggloss = Loss(device=self.device).to(self.device)
 
         self.init_lr = init_lr
         self.G_lr = G_lr
         self.D_lr = D_lr
 
-        self.writer = tensorboard.SummaryWriter(log_dir='./logs')
+        self.writer = tensorboard.SummaryWriter(log_dir = './logs')
         self.init_train_epoch = init_training_epoch
         self.train_epoch = train_epoch
 
@@ -103,8 +104,6 @@ class Trial:
 
                 total_loss += content_loss
 
-                print(i)
-
             self.writer.add_scalar(f"Loss : {self.init_time}", total_loss.item(), epoch)
 
             for name, weight in self.G.named_parameters():
@@ -121,13 +120,11 @@ class Trial:
 
     def eval_image(self, epoch: int, current_time, img):
         self.G.eval()
-
         styled_test_img = tr.transform(img).unsqueeze(0).to(self.device)
-
         with torch.no_grad():
             styled_test_img = self.G(styled_test_img)
             styled_test_img = styled_test_img.to('cpu').squeeze()
-        write_image(self.writer, styled_test_img, f'reconstructed img {current_time}', epoch + 1)
+        self.write_image(self.writer, styled_test_img, f'reconstructed img {current_time}', epoch + 1)
         self.writer.flush()
         self.G.train()
 
@@ -142,14 +139,6 @@ class Trial:
         image = image.permute(1, 2, 0).to(dtype = torch.uint8)
         self.writer.add_image(img_caption, image, step, dataformats= 'HWC')
         self.writer.flush()
-
-  #assert torch.min(image).item() >= -1. and torch.max(image).item() <= 1.
-  inv_norm = transforms.Normalize([-1, -1, -1], [2., 2., 2.])
-  image = inv_norm(image)   #[-1, 1] -> [0, 1]
-  image *= 255.             #[0, 1] -> [0, 255]
-  image = image.permute(1, 2, 0).to(dtype = torch.uint8)
-  writer.add_image(img_caption, image, step, dataformats= 'HWC')
-  writer.flush()
 
     def train(self,
               adv_weight: float = 1.0,

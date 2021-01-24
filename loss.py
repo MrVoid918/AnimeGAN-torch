@@ -1,4 +1,4 @@
-import torch.nn as nn
+# import torch.nn as nn
 import torchvision.transforms as transforms
 import torchvision.models as models
 import torch
@@ -10,7 +10,7 @@ import kornia
 # to load more than once into memory
 
 
-class VGGLosses(nn.Module):
+class Loss(nn.Module):
 
     def __init__(self, resize=False, normalize_mean_std=True, device='cpu'):
         super(VGGLosses, self).__init__()
