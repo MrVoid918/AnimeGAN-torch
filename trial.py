@@ -9,6 +9,7 @@ import torch.nn as nn
 import torch
 from torch.utils.data import DataLoader
 import torch.utils.tensorboard as tensorboard
+from torchvision import transforms
 import json
 
 import data_transform as tr
@@ -129,6 +130,26 @@ class Trial:
         write_image(self.writer, styled_test_img, f'reconstructed img {current_time}', epoch + 1)
         self.writer.flush()
         self.G.train()
+
+    def write_image(self,
+                    image : torch.Tensor,
+                    img_caption : str = "sample_image",
+                    step : int = 0):
+
+        inv_norm = transforms.Normalize([-1, -1, -1], [2., 2., 2.])
+        image = inv_norm(image)   #[-1, 1] -> [0, 1]
+        image *= 255.             #[0, 1] -> [0, 255]
+        image = image.permute(1, 2, 0).to(dtype = torch.uint8)
+        self.writer.add_image(img_caption, image, step, dataformats= 'HWC')
+        self.writer.flush()
+
+  #assert torch.min(image).item() >= -1. and torch.max(image).item() <= 1.
+  inv_norm = transforms.Normalize([-1, -1, -1], [2., 2., 2.])
+  image = inv_norm(image)   #[-1, 1] -> [0, 1]
+  image *= 255.             #[0, 1] -> [0, 255]
+  image = image.permute(1, 2, 0).to(dtype = torch.uint8)
+  writer.add_image(img_caption, image, step, dataformats= 'HWC')
+  writer.flush()
 
     def train(self,
               adv_weight: float = 1.0,
