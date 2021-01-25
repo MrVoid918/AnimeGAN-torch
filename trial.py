@@ -121,6 +121,7 @@ class Trial:
         #self.save_trial(self.init_train_epoch, "init")
 
     def eval_image(self, epoch: int, img):
+        """Feeds in one single image to process and save."""
         self.G.eval()
         styled_test_img = tr.transform(img).unsqueeze(0).to(self.device)
         with torch.no_grad():
@@ -172,7 +173,6 @@ class Trial:
         self.writer.add_image(f'test image {self.init_time}',
                               np.asarray(test_img), dataformats='HWC')
         self.writer.flush()
-        styled_test_img = tr.transform(test_img).unsqueeze(0).to(self.device)
 
         for epoch in tqdm(range(self.train_epoch)):
 
@@ -208,7 +208,7 @@ class Trial:
                                              'grayscale loss': dis_gray_loss.item(),
                                              'edge loss': dis_edge_loss.item()},
                                             i + epoch * len(self.dataloader))
-                self.writer.flush()
+                    self.writer.flush()
 
                 real_output = self.D(generator_output).view(-1)
                 per_loss = self.vggloss.perceptual_loss(train, generator_output)  # loss for G
@@ -232,24 +232,19 @@ class Trial:
                 self.optimizer_G.step()
 
                 if i % 200 == 0 and i != 0:
+
                     self.writer.add_scalars(f'generator losses {self.init_time}',
                                             {'adversarial loss': gen_adv_loss.item(),
                                              'content loss': gen_con_loss.item(),
                                              'style loss': gen_sty_loss.item(),
                                              'reconstruction loss': gen_rec_loss.item(),
-                                             'perceptual loss': gen_per_loss.item()}, i + epoch * len(self.dataloader))
-                self.writer.flush()
+                                             'perceptual loss': gen_per_loss.item()},
+                                            i + epoch * len(self.dataloader))
+                    self.writer.flush()
 
             self.write_weights(epoch)
 
-            self.G.eval()
-            with torch.no_grad():
-                styled_test_img = self.G(styled_test_img)
-
-            styled_test_img = styled_test_img.to('cpu').squeeze()
-            self.write_image(styled_test_img, f'styled image {self.init_time}', epoch + 1)
-
-            self.G.train()
+            self.eval_image(epoch, test_img)
 
     def train_2(self,
                 adv_weight: float = 1.0,
