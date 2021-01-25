@@ -113,7 +113,7 @@ class Trial:
 
             self.eval_image(epoch, self.init_time, test_img)
 
-        for g in optimizer_G.param_groups:
+        for g in self.optimizer_G.param_groups:
             g['lr'] = 0.0002
 
         self.save_trial(self.init_training_epoch, "init")
@@ -124,7 +124,7 @@ class Trial:
         with torch.no_grad():
             styled_test_img = self.G(styled_test_img)
             styled_test_img = styled_test_img.to('cpu').squeeze()
-        self.write_image(self.writer, styled_test_img, f'reconstructed img {current_time}', epoch + 1)
+        self.write_image(styled_test_img, f'reconstructed img {current_time}', epoch + 1)
         self.writer.flush()
         self.G.train()
 
@@ -208,7 +208,7 @@ class Trial:
             self.writer.add_scalar(
                 f'total discriminator loss {self.init_time}', total_dis_loss, i + epoch * len(self.dataloader))
 
-            for name, weight in D.named_parameters():
+            for name, weight in self.D.named_parameters():
                 if 'depthwise' in name or 'pointwise' in name:
                     self.writer.add_histogram(
                         f"Discriminator {name} {self.init_time}", weight, epoch)
@@ -216,7 +216,7 @@ class Trial:
                         f"Discriminator {name}.grad {self.init_time}", weight.grad, epoch)
                     self.writer.flush()
 
-            for name, weight in G.named_parameters():
+            for name, weight in self.G.named_parameters():
                 self.writer.add_histogram(f"Generator {name} {self.init_time}", weight, epoch)
                 self.writer.add_histogram(
                     f"Generator {name}.grad {self.init_time}", weight.grad, epoch)
@@ -224,12 +224,12 @@ class Trial:
 
             self.G.eval()
 
-            styled_test_img = transform(test_img).unsqueeze(0).to(device)
+            styled_test_img = tr.transform(test_img).unsqueeze(0).to(device)
             with torch.no_grad():
                 styled_test_img = self.G(styled_test_img)
 
             styled_test_img = styled_test_img.to('cpu').squeeze()
-            write_image(self.writer, styled_test_img, f'styled image {self.init_time}', epoch + 1)
+            self.write_image(styled_test_img, f'styled image {self.init_time}', epoch + 1)
 
             self.G.train()
 
