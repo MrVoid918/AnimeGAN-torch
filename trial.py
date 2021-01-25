@@ -215,6 +215,7 @@ class Trial:
                 style_loss = self.vggloss.style_loss(generator_output, style)
                 content_loss = self.vggloss.content_loss(generator_output, train)
                 recon_loss = self.vggloss.reconstruction_loss(generator_output, train)
+                tv_loss = self.vggloss.total_variation_loss(generator_output)
 
                 '''
                 print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
@@ -227,6 +228,7 @@ class Trial:
                 gen_sty_loss = gra_weight * style_loss
                 gen_rec_loss = col_weight * recon_loss
                 gen_per_loss = per_loss
+                gen_tv_loss = tv_loss
                 generator_loss = gen_adv_loss + gen_con_loss + gen_sty_loss + gen_rec_loss + gen_per_loss
                 generator_loss.backward()
                 self.optimizer_G.step()
@@ -242,8 +244,7 @@ class Trial:
                                             i + epoch * len(self.dataloader))
                     self.writer.flush()
 
-            self.write_weights(epoch)
-
+            self.write_weights(epoch + 1)
             self.eval_image(epoch, test_img)
 
     def train_2(self,
