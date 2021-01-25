@@ -224,7 +224,7 @@ class Trial:
 
             self.G.eval()
 
-            styled_test_img = tr.transform(test_img).unsqueeze(0).to(device)
+            styled_test_img = tr.transform(test_img).unsqueeze(0).to(self.device)
             with torch.no_grad():
                 styled_test_img = self.G(styled_test_img)
 
