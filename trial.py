@@ -238,7 +238,7 @@ class Trial:
                                              'style loss': gen_sty_loss.item(),
                                              'reconstruction loss': gen_rec_loss.item(),
                                              'perceptual loss': gen_per_loss.item()}, i + epoch * len(self.dataloader))
-                    self.writer.flush()
+                self.writer.flush()
 
             self.write_weights(epoch)
 
