@@ -34,7 +34,8 @@ class Trial:
                  init_training_epoch: int = 10,
                  train_epoch: int = 10,
                  optim_type: str = "ADAM",
-                 pin_memory: bool = True):
+                 pin_memory: bool = True,
+                 grad_set_to_none: bool = False):
 
         # self.config = config
         self.data_dir = data_dir
@@ -66,6 +67,7 @@ class Trial:
         self.init_lr = init_lr
         self.G_lr = G_lr
         self.D_lr = D_lr
+        self.grad_set_to_none = grad_set_to_none
 
         self.writer = tensorboard.SummaryWriter(log_dir=log_dir)
         self.init_train_epoch = init_training_epoch
@@ -96,7 +98,7 @@ class Trial:
 
             for i, (style, smooth, train) in enumerate(self.dataloader, 0):
                 # train = transform(test_img).unsqueeze(0)
-                self.G.zero_grad()
+                self.G.zero_grad(set_to_none=self.grad_set_to_none)
                 train = train.to(self.device)
 
                 generator_output = self.G(train)
@@ -200,7 +202,7 @@ class Trial:
                 self.optimizer_D.step()
 
                 if i % 200 == 0 and i != 0:
-                    self.writer.add_scalars(f'discriminator losses {self.init_time}',
+                    self.writer.add_scalars(f'{self.init_time} Discriminator losses',
                                             {'adversarial loss': dis_adv_loss.item(),
                                              'grayscale loss': dis_gray_loss.item(),
                                              'edge loss': dis_edge_loss.item()},
