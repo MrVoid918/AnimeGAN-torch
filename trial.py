@@ -19,6 +19,7 @@ from model.discriminator import PatchDiscriminator
 from model.generator import Generator
 from optimizers import GANOptimizer
 from loss import Loss
+from meter import AverageMeter
 
 
 class Trial:
@@ -87,6 +88,8 @@ class Trial:
         self.init_time = datetime.datetime.now().strftime("%H:%M:%S")
         self.writer.add_image(f'{self.init_time} sample_image',
                               np.asarray(test_img), dataformats='HWC')
+
+        meter = AverageMeter("Loss")
         self.writer.flush()
 
         for g in self.optimizer_G.param_groups:
@@ -94,7 +97,7 @@ class Trial:
 
         for epoch in tqdm(range(self.init_train_epoch)):
 
-            total_loss = 0
+            meter.reset()
 
             for i, (style, smooth, train) in enumerate(self.dataloader, 0):
                 # train = transform(test_img).unsqueeze(0)
@@ -105,29 +108,28 @@ class Trial:
                 # content_loss = vggloss.reconstruction_loss(generator_output, train) * con_weight
                 content_loss = self.vggloss.content_loss(generator_output, train) * con_weight
                 # content_loss = F.mse_loss(train, generator_output) * con_weight
-
                 content_loss.backward()
                 self.optimizer_G.step()
 
-                total_loss += content_loss.item()
+                meter.update(content_loss.detach())
 
-            self.writer.add_scalar(f"Loss : {self.init_time}", total_loss, epoch)
+            self.writer.add_scalar(f"Loss : {self.init_time}", meter.avg.item(), epoch)
             self.write_weights(epoch + 1, write_D=False)
-            self.eval_image(epoch, test_img)
+            self.eval_image(epoch, f'{self.init_time} reconstructed img', test_img)
 
         for g in self.optimizer_G.param_groups:
             g['lr'] = self.G_lr
 
         #self.save_trial(self.init_train_epoch, "init")
 
-    def eval_image(self, epoch: int, img):
+    def eval_image(self, epoch: int, caption, img):
         """Feeds in one single image to process and save."""
         self.G.eval()
         styled_test_img = tr.transform(img).unsqueeze(0).to(self.device)
         with torch.no_grad():
             styled_test_img = self.G(styled_test_img)
             styled_test_img = styled_test_img.to('cpu').squeeze()
-        self.write_image(styled_test_img, f'{self.init_time} reconstructed img', epoch + 1)
+        self.write_image(styled_test_img, caption, epoch + 1)
         self.writer.flush()
         self.G.train()
 
@@ -245,7 +247,7 @@ class Trial:
                     self.writer.flush()
 
             self.write_weights(epoch + 1)
-            self.eval_image(epoch, test_img)
+            self.eval_image(epoch, f'{self.init_time} style img', test_img)
 
     def train_2(self,
                 adv_weight: float = 1.0,
