@@ -30,7 +30,7 @@ class Trial:
                  batch_size: int = 2,
                  init_lr: float = 0.5,
                  G_lr: float = 0.0004,
-                 D_lr: float = 0.0004,
+                 D_lr: float = 0.0008,
                  init_training_epoch: int = 10,
                  train_epoch: int = 10,
                  optim_type: str = "ADAM",
@@ -231,12 +231,12 @@ class Trial:
                 self.optimizer_G.step()
 
                 if i % 200 == 0 and i != 0:
-                self.writer.add_scalars(f'generator losses {self.init_time}',
-                                        {'adversarial loss': gen_adv_loss.item(),
-                                         'content loss': gen_con_loss.item(),
-                                         'style loss': gen_sty_loss.item(),
-                                         'reconstruction loss': gen_rec_loss.item(),
-                                         'perceptual loss': gen_per_loss.item()}, i + epoch * len(self.dataloader))
+                    self.writer.add_scalars(f'generator losses {self.init_time}',
+                                            {'adversarial loss': gen_adv_loss.item(),
+                                             'content loss': gen_con_loss.item(),
+                                             'style loss': gen_sty_loss.item(),
+                                             'reconstruction loss': gen_rec_loss.item(),
+                                             'perceptual loss': gen_per_loss.item()}, i + epoch * len(self.dataloader))
                 self.writer.flush()
 
             for name, weight in self.D.named_parameters():
