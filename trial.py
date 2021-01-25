@@ -118,7 +118,7 @@ class Trial:
         for g in self.optimizer_G.param_groups:
             g['lr'] = self.G_lr
 
-        self.save_trial(self.init_training_epoch, "init")
+        self.save_trial(self.init_train_epoch, "init")
 
     def eval_image(self, epoch: int, img):
         self.G.eval()
