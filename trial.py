@@ -28,14 +28,14 @@ class Trial:
                  log_dir: str = './logs',
                  device: str = "cuda:0",
                  batch_size: int = 2,
-                 init_lr: float = 0.05,
+                 init_lr: float = 0.5,
                  G_lr: float = 0.0004,
                  D_lr: float = 0.0004,
                  init_training_epoch: int = 10,
                  train_epoch: int = 10,
                  optim_type: str = "ADAM",
                  pin_memory: bool = True,
-                 grad_set_to_none: bool = False):
+                 grad_set_to_none: bool = True):
 
         # self.config = config
         self.data_dir = data_dir
@@ -160,10 +160,10 @@ class Trial:
                     f"Generator {name}.grad {self.init_time}", weight.grad, epoch)
                 self.writer.flush()
 
-    def train(adv_weight: float = 300.,
-              con_weight: float = 1.5,
-              gra_weight: float = 3.,
-              col_weight: float = 10.,):
+    def train_1(adv_weight: float = 300.,
+                con_weight: float = 1.5,
+                gra_weight: float = 3.,
+                col_weight: float = 10.,):
 
         test_img_dir = Path(self.data_dir).joinpath('./test/test_photo256').resolve()
         test_img_dir = random.choice(list(test_img_dir.glob('**/*')))
@@ -262,11 +262,11 @@ class Trial:
 
             self.G.train()
 
-    def train(self,
-              adv_weight: float = 1.0,
-              threshold: float = 3.,
-              G_train_iter: int = 1,
-              D_train_iter: int = 1):  # if threshold is 0., set to half of adversarial loss
+    def train_2(self,
+                adv_weight: float = 1.0,
+                threshold: float = 3.,
+                G_train_iter: int = 1,
+                D_train_iter: int = 1):  # if threshold is 0., set to half of adversarial loss
 
         test_img_dir = Path(self.data_dir).joinpath('test', 'test_photo256').resolve()
         test_img_dir = random.choice(list(test_img_dir.glob('**/*')))
@@ -344,7 +344,7 @@ class Trial:
 
     def __call__(self):
         self.init_train()
-        self.train()
+        self.train_1()
 
     def save_trial(self, epoch: int, train_type: str):
         save_dir = Path(f"./Trial_{train_type}_{self.init_time}.pt")
