@@ -26,24 +26,28 @@ class Trial:
     def __init__(self,
                  data_dir: str = './dataset',
                  log_dir: str = './logs',
-                 device="cuda:0",
-                 batch_size=2,
+                 device: str = "cuda:0",
+                 batch_size: int = 2,
                  init_lr: float = 0.05,
                  G_lr: float = 0.0004,
                  D_lr: float = 0.0004,
                  init_training_epoch: int = 10,
-                 train_epoch: int = 10,):
+                 train_epoch: int = 10,
+                 optim_type: str = "ADAM",
+                 pin_memory: bool = True):
 
         # self.config = config
         self.data_dir = data_dir
 
-        self.dataset = Dataset(root='./dataset/Shinkai',
+        self.dataset = Dataset(root=data_dir.join(r"/Shinkai"),
                                style_transform=tr.transform,
                                smooth_transform=tr.transform)
 
         self.dataloader = DataLoader(self.dataset,
                                      batch_size=batch_size,
-                                     shuffle=True)
+                                     shuffle=True,
+                                     num_workers=4,
+                                     pin_memory=pin_memory)
 
         self.device = torch.device(device) if torch.cuda.is_available() else torch.device('cpu')
 
@@ -52,9 +56,9 @@ class Trial:
 
         self.init_model_weights()
 
-        self.optimizer_G = GANOptimizer("ADAM", self.G.parameters(),
+        self.optimizer_G = GANOptimizer(optim_type, self.G.parameters(),
                                         lr=G_lr, betas=(0.5, 0.999), amsgrad=True)
-        self.optimizer_D = GANOptimizer("ADAM", self.D.parameters(),
+        self.optimizer_D = GANOptimizer(optim_type, self.D.parameters(),
                                         lr=D_lr, betas=(0.5, 0.999), amsgrad=True)
 
         self.vggloss = Loss(device=self.device).to(self.device)
@@ -63,7 +67,7 @@ class Trial:
         self.G_lr = G_lr
         self.D_lr = D_lr
 
-        self.writer = tensorboard.SummaryWriter(log_dir='./logs')
+        self.writer = tensorboard.SummaryWriter(log_dir=log_dir)
         self.init_train_epoch = init_training_epoch
         self.train_epoch = train_epoch
 
