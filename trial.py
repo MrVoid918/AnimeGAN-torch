@@ -40,7 +40,7 @@ class Trial:
         # self.config = config
         self.data_dir = data_dir
 
-        self.dataset = Dataset(root=data_dir.join(r"/Shinkai"),
+        self.dataset = Dataset(root=data_dir + "/Shinkai",
                                style_transform=tr.transform,
                                smooth_transform=tr.transform)
 
@@ -118,7 +118,7 @@ class Trial:
         for g in self.optimizer_G.param_groups:
             g['lr'] = self.G_lr
 
-        self.save_trial(self.init_train_epoch, "init")
+        #self.save_trial(self.init_train_epoch, "init")
 
     def eval_image(self, epoch: int, img):
         self.G.eval()
@@ -160,12 +160,13 @@ class Trial:
                     f"Generator {name}.grad {self.init_time}", weight.grad, epoch)
                 self.writer.flush()
 
-    def train_1(adv_weight: float = 300.,
+    def train_1(self,
+                adv_weight: float = 300.,
                 con_weight: float = 1.5,
                 gra_weight: float = 3.,
                 col_weight: float = 10.,):
 
-        test_img_dir = Path(self.data_dir).joinpath('./test/test_photo256').resolve()
+        test_img_dir = Path(self.data_dir).joinpath('test/test_photo256').resolve()
         test_img_dir = random.choice(list(test_img_dir.glob('**/*')))
         test_img = Image.open(test_img_dir)
         self.writer.add_image(f'test image {self.init_time}',
@@ -191,7 +192,7 @@ class Trial:
                 gray_train = tr.inv_gray_transform(train)
                 greyscale_output = self.D(gray_train).view(-1)
                 smoothed_loss = self.D(smooth).view(-1)  # smoothed image loss
-                #loss_D_real = adversarial_loss(output, label)
+                # loss_D_real = adversarial_loss(output, label)
 
                 dis_adv_loss = adv_weight * (torch.pow(style_loss_value - 1, 2).mean() +
                                              torch.pow(real_output, 2).mean())
@@ -237,21 +238,9 @@ class Trial:
                                              'style loss': gen_sty_loss.item(),
                                              'reconstruction loss': gen_rec_loss.item(),
                                              'perceptual loss': gen_per_loss.item()}, i + epoch * len(self.dataloader))
-                self.writer.flush()
-
-            for name, weight in self.D.named_parameters():
-                if 'depthwise' in name or 'pointwise' in name:
-                    self.writer.add_histogram(
-                        f"Discriminator {name} {self.init_time}", weight, epoch)
-                    self.writer.add_histogram(
-                        f"Discriminator {name}.grad {self.init_time}", weight.grad, epoch)
                     self.writer.flush()
 
-            for name, weight in self.G.named_parameters():
-                self.writer.add_histogram(f"Generator {name} {current_time}", weight, epoch)
-                self.writer.add_histogram(
-                    f"Generator {name}.grad {current_time}", weight.grad, epoch)
-                self.writer.flush()
+            self.write_weights(epoch)
 
             self.G.eval()
             with torch.no_grad():
