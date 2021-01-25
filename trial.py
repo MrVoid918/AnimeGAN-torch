@@ -25,9 +25,9 @@ class Trial:
 
     def __init__(self,
                  data_dir: str = './dataset',
-                 log_dir : str = './logs',
+                 log_dir: str = './logs',
                  device="cuda:0",
-                 batch_size = 2,
+                 batch_size=2,
                  init_lr: float = 0.05,
                  G_lr: float = 0.0004,
                  D_lr: float = 0.0004,
@@ -52,8 +52,10 @@ class Trial:
 
         self.init_model_weights()
 
-        self.optimizer_G = GANOptimizer("ADAM", self.G.parameters(), lr=G_lr, betas=(0.5, 0.999), amsgrad = True)
-        self.optimizer_D = GANOptimizer("ADAM", self.D.parameters(), lr=D_lr, betas=(0.5, 0.999), amsgrad = True)
+        self.optimizer_G = GANOptimizer("ADAM", self.G.parameters(),
+                                        lr=G_lr, betas=(0.5, 0.999), amsgrad=True)
+        self.optimizer_D = GANOptimizer("ADAM", self.D.parameters(),
+                                        lr=D_lr, betas=(0.5, 0.999), amsgrad=True)
 
         self.vggloss = Loss(device=self.device).to(self.device)
 
@@ -61,24 +63,23 @@ class Trial:
         self.G_lr = G_lr
         self.D_lr = D_lr
 
-        self.writer = tensorboard.SummaryWriter(log_dir = './logs')
+        self.writer = tensorboard.SummaryWriter(log_dir='./logs')
         self.init_train_epoch = init_training_epoch
         self.train_epoch = train_epoch
 
         self.init_time = None
 
-
     def init_model_weights(self):
         self.G.apply(weights_init)
         self.D.apply(weights_init)
 
-    def init_train(self, con_weight : float = 1.0):
+    def init_train(self, con_weight: float = 1.0):
 
         test_img_dir = Path(self.data_dir).joinpath('./test/test_photo256').resolve()
         test_img_dir = random.choice(list(test_img_dir.glob('**/*')))
         test_img = Image.open(test_img_dir)
         self.init_time = datetime.datetime.now().strftime("%H:%M:%S")
-        self.writer.add_image(f'sample_image {self.init_time}',
+        self.writer.add_image(f'{self.init_time} sample_image',
                               np.asarray(test_img), dataformats='HWC')
         self.writer.flush()
 
@@ -102,43 +103,158 @@ class Trial:
                 content_loss.backward()
                 self.optimizer_G.step()
 
-                total_loss += content_loss
+                total_loss += content_loss.item()
 
-            self.writer.add_scalar(f"Loss : {self.init_time}", total_loss.item(), epoch)
-
-            for name, weight in self.G.named_parameters():
-                self.writer.add_histogram(f"{name} {self.init_time}", weight, epoch)
-                self.writer.add_histogram(f"{name}.grad {self.init_time}", weight.grad, epoch)
-                self.writer.flush()
-
-            self.eval_image(epoch, self.init_time, test_img)
+            self.writer.add_scalar(f"Loss : {self.init_time}", total_loss, epoch)
+            self.write_weights(epoch + 1, write_D=False)
+            self.eval_image(epoch, test_img)
 
         for g in self.optimizer_G.param_groups:
-            g['lr'] = 0.0002
+            g['lr'] = self.G_lr
 
         self.save_trial(self.init_training_epoch, "init")
 
-    def eval_image(self, epoch: int, current_time, img):
+    def eval_image(self, epoch: int, img):
         self.G.eval()
         styled_test_img = tr.transform(img).unsqueeze(0).to(self.device)
         with torch.no_grad():
             styled_test_img = self.G(styled_test_img)
             styled_test_img = styled_test_img.to('cpu').squeeze()
-        self.write_image(styled_test_img, f'reconstructed img {current_time}', epoch + 1)
+        self.write_image(styled_test_img, f'{self.init_time} reconstructed img', epoch + 1)
         self.writer.flush()
         self.G.train()
 
     def write_image(self,
-                    image : torch.Tensor,
-                    img_caption : str = "sample_image",
-                    step : int = 0):
+                    image: torch.Tensor,
+                    img_caption: str = "sample_image",
+                    step: int = 0):
 
         inv_norm = transforms.Normalize([-1, -1, -1], [2., 2., 2.])
-        image = inv_norm(image)   #[-1, 1] -> [0, 1]
-        image *= 255.             #[0, 1] -> [0, 255]
-        image = image.permute(1, 2, 0).to(dtype = torch.uint8)
-        self.writer.add_image(img_caption, image, step, dataformats= 'HWC')
+        image = inv_norm(image)  # [-1, 1] -> [0, 1]
+        image *= 255.  # [0, 1] -> [0, 255]
+        image = image.permute(1, 2, 0).to(dtype=torch.uint8)
+        self.writer.add_image(img_caption, image, step, dataformats='HWC')
         self.writer.flush()
+
+    def write_weights(self, epoch: int, write_D=True, write_G=True):
+
+        if write_D:
+            for name, weight in self.D.named_parameters():
+                if 'depthwise' in name or 'pointwise' in name:
+                    self.writer.add_histogram(
+                        f"Discriminator {name} {self.init_time}", weight, epoch)
+                    self.writer.add_histogram(
+                        f"Discriminator {name}.grad {self.init_time}", weight.grad, epoch)
+                    self.writer.flush()
+
+        if write_G:
+            for name, weight in self.G.named_parameters():
+                self.writer.add_histogram(f"Generator {name} {self.init_time}", weight, epoch)
+                self.writer.add_histogram(
+                    f"Generator {name}.grad {self.init_time}", weight.grad, epoch)
+                self.writer.flush()
+
+    def train(adv_weight: float = 300.,
+              con_weight: float = 1.5,
+              gra_weight: float = 3.,
+              col_weight: float = 10.,):
+
+        test_img_dir = Path(self.data_dir).joinpath('./test/test_photo256').resolve()
+        test_img_dir = random.choice(list(test_img_dir.glob('**/*')))
+        test_img = Image.open(test_img_dir)
+        self.writer.add_image(f'test image {self.init_time}',
+                              np.asarray(test_img), dataformats='HWC')
+        self.writer.flush()
+        styled_test_img = tr.transform(test_img).unsqueeze(0).to(self.device)
+
+        for epoch in tqdm(range(self.train_epoch)):
+
+            for i, (style, smooth, train) in enumerate(self.dataloader, 0):
+
+                self.D.zero_grad()
+                style = style.to(self.device)
+                smooth = smooth.to(self.device)
+                train = train.to(self.device)
+
+                # style image to discriminator(Not Gram Matrix Loss)
+                style_loss_value = self.D(style).view(-1)
+                generator_output = self.G(train)
+                # generated image to discriminator
+                real_output = self.D(generator_output.detach()).view(-1)
+                # greyscale_output = D(transforms.functional.rgb_to_grayscale(train, num_output_channels=3)).view(-1) #greyscale adversarial loss
+                gray_train = tr.inv_gray_transform(train)
+                greyscale_output = self.D(gray_train).view(-1)
+                smoothed_loss = self.D(smooth).view(-1)  # smoothed image loss
+                #loss_D_real = adversarial_loss(output, label)
+
+                dis_adv_loss = adv_weight * (torch.pow(style_loss_value - 1, 2).mean() +
+                                             torch.pow(real_output, 2).mean())
+                dis_gray_loss = torch.pow(greyscale_output, 2).mean()
+                dis_edge_loss = torch.pow(smoothed_loss, 2).mean()
+                discriminator_loss = dis_adv_loss + dis_gray_loss + dis_edge_loss
+                discriminator_loss.backward()
+                self.optimizer_D.step()
+
+                if i % 200 == 0 and i != 0:
+                    self.writer.add_scalars(f'discriminator losses {self.init_time}',
+                                            {'adversarial loss': dis_adv_loss.item(),
+                                             'grayscale loss': dis_gray_loss.item(),
+                                             'edge loss': dis_edge_loss.item()},
+                                            i + epoch * len(self.dataloader))
+                self.writer.flush()
+
+                real_output = self.D(generator_output).view(-1)
+                per_loss = self.vggloss.perceptual_loss(train, generator_output)  # loss for G
+                style_loss = self.vggloss.style_loss(generator_output, style)
+                content_loss = self.vggloss.content_loss(generator_output, train)
+                recon_loss = self.vggloss.reconstruction_loss(generator_output, train)
+
+                '''
+                print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
+                    % (epoch, num_epoch, i, len(data_loader),
+                      loss_D.item(), loss_G.item(), D_x, D_G_z1, D_G_z2))'''
+
+                self.G.zero_grad()
+                gen_adv_loss = adv_weight * torch.pow(real_output - 1, 2).mean()
+                gen_con_loss = con_weight * content_loss
+                gen_sty_loss = gra_weight * style_loss
+                gen_rec_loss = col_weight * recon_loss
+                gen_per_loss = per_loss
+                generator_loss = gen_adv_loss + gen_con_loss + gen_sty_loss + gen_rec_loss + gen_per_loss
+                generator_loss.backward()
+                self.optimizer_G.step()
+
+                if i % 200 == 0 and i != 0:
+                self.writer.add_scalars(f'generator losses {self.init_time}',
+                                        {'adversarial loss': gen_adv_loss.item(),
+                                         'content loss': gen_con_loss.item(),
+                                         'style loss': gen_sty_loss.item(),
+                                         'reconstruction loss': gen_rec_loss.item(),
+                                         'perceptual loss': gen_per_loss.item()}, i + epoch * len(self.dataloader))
+                self.writer.flush()
+
+            for name, weight in self.D.named_parameters():
+                if 'depthwise' in name or 'pointwise' in name:
+                    self.writer.add_histogram(
+                        f"Discriminator {name} {self.init_time}", weight, epoch)
+                    self.writer.add_histogram(
+                        f"Discriminator {name}.grad {self.init_time}", weight.grad, epoch)
+                    self.writer.flush()
+
+            for name, weight in self.G.named_parameters():
+                self.writer.add_histogram(f"Generator {name} {current_time}", weight, epoch)
+                self.writer.add_histogram(
+                    f"Generator {name}.grad {current_time}", weight.grad, epoch)
+                self.writer.flush()
+
+            self.G.eval()
+            with torch.no_grad():
+                styled_test_img = self.G(styled_test_img)
+
+            styled_test_img = styled_test_img.to('cpu').squeeze()
+            self.write_image(styled_test_img, f'styled image {self.init_time}', epoch + 1)
+
+            self.G.train()
 
     def train(self,
               adv_weight: float = 1.0,
@@ -203,25 +319,12 @@ class Trial:
             if total_dis_loss > threshold and not keep_constant:
                 perception_weight += 0.05
             else:
-                keep_constant=True
+                keep_constant = True
 
             self.writer.add_scalar(
                 f'total discriminator loss {self.init_time}', total_dis_loss, i + epoch * len(self.dataloader))
 
-            for name, weight in self.D.named_parameters():
-                if 'depthwise' in name or 'pointwise' in name:
-                    self.writer.add_histogram(
-                        f"Discriminator {name} {self.init_time}", weight, epoch)
-                    self.writer.add_histogram(
-                        f"Discriminator {name}.grad {self.init_time}", weight.grad, epoch)
-                    self.writer.flush()
-
-            for name, weight in self.G.named_parameters():
-                self.writer.add_histogram(f"Generator {name} {self.init_time}", weight, epoch)
-                self.writer.add_histogram(
-                    f"Generator {name}.grad {self.init_time}", weight.grad, epoch)
-                self.writer.flush()
-
+            self.write_weights()
             self.G.eval()
 
             styled_test_img = tr.transform(test_img).unsqueeze(0).to(self.device)
