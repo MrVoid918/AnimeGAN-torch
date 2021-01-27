@@ -113,7 +113,7 @@ class Trial:
 
                 meter.update(content_loss.detach())
 
-            self.writer.add_scalar(f"Loss : {self.init_time}", meter.avg.item(), epoch)
+            self.writer.add_scalar(f"Loss : {self.init_time}", meter.sum.item(), epoch)
             self.write_weights(epoch + 1, write_D=False)
             self.eval_image(epoch, f'{self.init_time} reconstructed img', test_img)
 
