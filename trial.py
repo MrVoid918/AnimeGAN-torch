@@ -10,6 +10,7 @@ import torch
 from torch.utils.data import DataLoader
 import torch.utils.tensorboard as tensorboard
 from torchvision import transforms
+from torch.optim.lr_scheduler import OneCycleLR
 import json
 
 import data_transform as tr
@@ -63,7 +64,7 @@ class Trial:
         self.optimizer_D = GANOptimizer(optim_type, self.D.parameters(),
                                         lr=D_lr, betas=(0.5, 0.999), amsgrad=True)
 
-        self.vggloss = Loss(device=self.device).to(self.device)
+        self.loss = Loss(device=self.device).to(self.device)
 
         self.init_lr = init_lr
         self.G_lr = G_lr
@@ -82,15 +83,13 @@ class Trial:
 
     def init_train(self, con_weight: float = 1.0):
 
-        test_img_dir = Path(self.data_dir).joinpath('./test/test_photo256').resolve()
-        test_img_dir = random.choice(list(test_img_dir.glob('**/*')))
-        test_img = Image.open(test_img_dir)
-        self.init_time = datetime.datetime.now().strftime("%H:%M:%S")
-        self.writer.add_image(f'{self.init_time} sample_image',
-                              np.asarray(test_img), dataformats='HWC')
-
+        test_img = self.get_test_image()
         meter = AverageMeter("Loss")
         self.writer.flush()
+        lr_scheduler = OneCycleLR(self.optimizer_G,
+                                  max_lr=0.9999,
+                                  steps_per_epoch=len(self.dataloader),
+                                  epochs=self.init_train_epoch)
 
         for g in self.optimizer_G.param_groups:
             g['lr'] = self.init_lr
@@ -105,11 +104,12 @@ class Trial:
                 train = train.to(self.device)
 
                 generator_output = self.G(train)
-                # content_loss = vggloss.reconstruction_loss(generator_output, train) * con_weight
-                content_loss = self.vggloss.content_loss(generator_output, train) * con_weight
+                # content_loss = loss.reconstruction_loss(generator_output, train) * con_weight
+                content_loss = self.loss.content_loss(generator_output, train) * con_weight
                 # content_loss = F.mse_loss(train, generator_output) * con_weight
                 content_loss.backward()
                 self.optimizer_G.step()
+                lr_scheduler.step()
 
                 meter.update(content_loss.detach())
 
@@ -213,11 +213,11 @@ class Trial:
                     self.writer.flush()
 
                 real_output = self.D(generator_output).view(-1)
-                per_loss = self.vggloss.perceptual_loss(train, generator_output)  # loss for G
-                style_loss = self.vggloss.style_loss(generator_output, style)
-                content_loss = self.vggloss.content_loss(generator_output, train)
-                recon_loss = self.vggloss.reconstruction_loss(generator_output, train)
-                tv_loss = self.vggloss.total_variation_loss(generator_output)
+                per_loss = self.loss.perceptual_loss(train, generator_output)  # loss for G
+                style_loss = self.loss.style_loss(generator_output, style)
+                content_loss = self.loss.content_loss(generator_output, train)
+                recon_loss = self.loss.reconstruction_loss(generator_output, train)
+                tv_loss = self.loss.total_variation_loss(generator_output)
 
                 '''
                 print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
@@ -296,7 +296,7 @@ class Trial:
                     generator_output = self.G(train)
                     real_output = self.D(generator_output).view(-1)
                     per_loss = perception_weight * \
-                        self.vggloss.perceptual_loss(train, generator_output)
+                        self.loss.perceptual_loss(train, generator_output)
                     gen_adv_loss = adv_weight * torch.pow(real_output - 1, 2).mean()
                     gen_loss = gen_adv_loss + per_loss
                     gen_loss.backward()
@@ -334,18 +334,66 @@ class Trial:
         self.train_1()
 
     def save_trial(self, epoch: int, train_type: str):
-        save_dir = Path(f"./Trial_{train_type}_{self.init_time}.pt")
+        save_dir = Path(f"Trial_{train_type}_{self.init_time}.pt")
         training_details = {"epoch": epoch,
                             "generator": {"generator_state_dict": self.G.state_dict(),
                                           "optimizer_G_state_dict": self.optimizer_G.state_dict(), },
                             "discriminator": {"discriminator_state_dict": self.D.state_dict(),
                                               "optimizer_D_state_dict": self.optimizer_D.state_dict()}}
 
-        torch.save(training_details, save_dir)
-        training_details["saved_dir"] = save_dir.as_posix()
+        torch.save(training_details, save_dir.as_posix())
 
-        with open(self.config, "r+") as file:
-            data = json.load(file)
-            data.update(training_details)
-            file.seek(0)
-            json.dump(data, file)
+    def Generator_NOGAN(self,
+                        epoch: int = 1,
+                        style_weight: float = 2.,
+                        content_weight: float = 1.2,
+                        recon_weight: float = 10.,
+                        tv_weight: float = 1.):
+        """Training Generator in NOGAN manner (Feature Loss only)."""
+        test_img = self.get_test_image()
+        self.writer.flush()
+        lr_scheduler = OneCycleLR(self.optimizer_G,
+                                  max_lr=1e-2,
+                                  steps_per_epoch=len(self.dataloader),
+                                  epochs=1)
+
+        for epoch in tqdm(range(epoch)):
+
+            for i, (style, smooth, train) in enumerate(self.dataloader, 0):
+                # train = transform(test_img).unsqueeze(0)
+                self.G.zero_grad(set_to_none=self.grad_set_to_none)
+                train = train.to(self.device)
+
+                generator_output = self.G(train)
+                style_loss = self.loss.style_loss(generator_output, style) * style_weight
+                content_loss = self.loss.content_loss(generator_output, train) * content_weight
+                recon_loss = self.loss.reconstruction_loss(generator_output, train) * recon_weight
+                tv_loss = self.loss.total_variation_loss(generator_output) * tv_weight
+                total_loss = style_loss + content_loss + recon_loss + tv_loss
+                total_loss.backward()
+                self.optimizer_G.step()
+                lr_scheduler.step()
+
+                if i % 50 == 0 and i != 0:
+
+                    self.writer.add_scalars(f'{self.init_time}NOGAN generator losses',
+                                            {'content loss': content_loss.item(),
+                                             'style loss': style_loss.item(),
+                                             'reconstruction loss': recon_loss.item(),
+                                             'tv loss': tv_loss.item()},
+                                            i + epoch * len(self.dataloader))
+                    self.writer.flush()
+
+        self.write_weights(epoch + 1, write_D=False)
+        self.eval_image(epoch, f'{self.init_time} reconstructed img', test_img)
+
+    def get_test_image(self):
+        """Get random test image."""
+        test_img_dir = Path(self.data_dir).joinpath('test/test_photo256').resolve()
+        test_img_dir = random.choice(list(test_img_dir.glob('**/*')))
+        test_img = Image.open(test_img_dir)
+        self.init_time = datetime.datetime.now().strftime("%H:%M:%S")
+        self.writer.add_image(f'{self.init_time} sample_image',
+                              np.asarray(test_img), dataformats='HWC')
+
+        return test_img
