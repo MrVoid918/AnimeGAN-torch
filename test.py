@@ -9,8 +9,8 @@ import init_train
 from trial import Trial
 import torch
 
-torch.backends.cudnn.benchmark = True
+#torch.backends.cudnn.benchmark = True
 
 if __name__ == '__main__':
-    trial = Trial(batch_size=16,)
-    trial.init_train()
+    trial = Trial(batch_size=32, device='cpu')
+    trial.Generator_NOGAN()
