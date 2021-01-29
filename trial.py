@@ -20,7 +20,7 @@ from model.discriminator import PatchDiscriminator
 from model.generator import Generator
 from optimizers import GANOptimizer
 from loss import Loss
-from meter import AverageMeter
+from meter import AverageMeter, LossMeters
 
 
 class Trial:
@@ -345,7 +345,7 @@ class Trial:
 
     def Generator_NOGAN(self,
                         epoch: int = 1,
-                        style_weight: float = 2.,
+                        style_weight: float = 20.,
                         content_weight: float = 1.2,
                         recon_weight: float = 10.,
                         tv_weight: float = 1.):
@@ -355,14 +355,18 @@ class Trial:
         lr_scheduler = OneCycleLR(self.optimizer_G,
                                   max_lr=1e-2,
                                   steps_per_epoch=len(self.dataloader),
-                                  epochs=1)
-
+                                  epochs=epoch)
+        meter = LossMeters('style_loss',
+                           'content_loss')
         for epoch in tqdm(range(epoch)):
+
+            meter.reset()
 
             for i, (style, smooth, train) in enumerate(self.dataloader, 0):
                 # train = transform(test_img).unsqueeze(0)
                 self.G.zero_grad(set_to_none=self.grad_set_to_none)
                 train = train.to(self.device)
+                style = style.to(self.device)
 
                 generator_output = self.G(train)
                 style_loss = self.loss.style_loss(generator_output, style) * style_weight
@@ -374,18 +378,17 @@ class Trial:
                 self.optimizer_G.step()
                 lr_scheduler.step()
 
+                meter.update(style_loss, content_loss)
+
                 if i % 50 == 0 and i != 0:
 
-                    self.writer.add_scalars(f'{self.init_time}NOGAN generator losses',
-                                            {'content loss': content_loss.item(),
-                                             'style loss': style_loss.item(),
-                                             'reconstruction loss': recon_loss.item(),
-                                             'tv loss': tv_loss.item()},
+                    self.writer.add_scalars(f'{self.init_time} NOGAN generator losses',
+                                            meter.as_dict('avg'),
                                             i + epoch * len(self.dataloader))
                     self.writer.flush()
 
-        self.write_weights(epoch + 1, write_D=False)
-        self.eval_image(epoch, f'{self.init_time} reconstructed img', test_img)
+            self.write_weights(epoch + 1, write_D=False)
+            self.eval_image(epoch, f'{self.init_time} reconstructed img', test_img)
 
     def get_test_image(self):
         """Get random test image."""

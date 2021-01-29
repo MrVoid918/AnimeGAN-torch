@@ -12,12 +12,18 @@ import kornia
 
 
 class Loss(nn.Module):
+    """Wraps all loss function into one class."""
 
     def __init__(self, resize=False, normalize_mean_std=True, device='cpu'):
         super(Loss, self).__init__()
 
         self.model = models.vgg19(pretrained=True).features[:26].to(
             device).eval()  # features[:26] get to conv4_4
+        for i in range(26):
+            layer = self.model[i]
+            if isinstance(layer, nn.MaxPool2d):
+                self.model[i] = nn.AvgPool2d(kernel_size=2, stride=2)
+                # Convert MaxPool to AvgPool
         for p in self.model.parameters():
             p.requires_grad = False
 
@@ -43,23 +49,30 @@ class Loss(nn.Module):
 
         features = input.view(a * b, c * d)
 
-        G = torch.mm(features, features.t())
+        G = torch.bmm(features, features.t())
 
         return G.div(a * b * c * d)
 
-    def content_loss(self, input, target):
+    def content_loss(self, input, target, per: bool = False):
         '''real image & generated image'''
 
         if input.shape[1] != 3:
             input = input.repeat(1, 3, 1, 1)
             target = target.repeat(1, 3, 1, 1)
-        '''
-    if self.normalize_mean_std:
-      input = (input-self.mean) / self.std
-      target = (target-self.mean) / self.std
-    '''
-        input = self.model(input)
-        target = self.model(target)
+
+        if self.normalize_mean_std:
+            input = torch.clip(self.inv_norm(input), 0, 1)
+            target = torch.clip(self.inv_norm(target), 0, 1)
+            input = (input-self.mean) / self.std
+            target = (target-self.mean) / self.std
+
+        if not per:
+            input = self.model(input)
+            target = self.model(target).detach()
+        else:
+            input = self.model[:18](input)
+            target = self.model[:18](target).detach()
+            '''Use Original perceptual loss relu-3_3'''
 
         return F.l1_loss(input, target)
 
@@ -67,8 +80,8 @@ class Loss(nn.Module):
         '''style image & generated image'''
 
         if luma:
-            input = self.inv_norm(input)
-            target = self.inv_norm(target)
+            input = torch.clip(self.inv_norm(input), 0, 1)
+            target = torch.clip(self.inv_norm(target), 0, 1)
             input = kornia.rgb_to_ycbcr(input)[:, 0].unsqueeze(1)
             target = kornia.rgb_to_ycbcr(target)[:, 0].unsqueeze(1)
 
@@ -86,7 +99,7 @@ class Loss(nn.Module):
 
         input = self.model(input)
         input_gram = self.gram_matrix(input)
-        target = self.model(target)
+        target = self.model(target).detach()
         target_gram = self.gram_matrix(target)
 
         return F.l1_loss(input_gram, target_gram)
@@ -113,7 +126,7 @@ class Loss(nn.Module):
 
         for block in self.blocks:
             input = block(input)
-            target = block(target)
+            target = block(target).detach()
             loss = F.l1_loss(input, target) * weight
             weight *= 2.
             # we manually pass convolved image thorugh relu, instead of passing through blocks
@@ -124,10 +137,11 @@ class Loss(nn.Module):
         return total_loss
 
     def reconstruction_loss(self, input, target):
-        input = input * 0.5 + 0.5
-        target = target * 0.5 + 0.5
+        input = torch.clip(self.inv_norm(input), 0, 1)
+        target = torch.clip(self.inv_norm(target), 0, 1)
+        # kornia function requires in range [0-1]
         input = kornia.rgb_to_ycbcr(input)
-        target = kornia.rgb_to_ycbcr(target)
+        target = kornia.rgb_to_ycbcr(target).detach()
         loss = F.l1_loss(input[:, 0], target[:, 0])
         loss += F.smooth_l1_loss(input[:, 1:], target[:, 1:])
 
