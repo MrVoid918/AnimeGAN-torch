@@ -388,7 +388,7 @@ class Trial:
 
     def Discriminator_NOGAN(self, epoch: int, adv_weight: float = 1.0):
         lr_scheduler = OneCycleLR(self.optimizer_D,
-                                  max_lr=1e-2,
+                                  max_lr=0.1,
                                   steps_per_epoch=len(self.dataloader),
                                   epochs=epoch)
         meter = LossMeters('real_adv_loss', 'fake_adv_loss')
