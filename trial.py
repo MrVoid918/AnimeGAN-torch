@@ -120,7 +120,7 @@ class Trial:
         for g in self.optimizer_G.param_groups:
             g['lr'] = self.G_lr
 
-        #self.save_trial(self.init_train_epoch, "init")
+        # self.save_trial(self.init_train_epoch, "init")
 
     def eval_image(self, epoch: int, caption, img):
         """Feeds in one single image to process and save."""
@@ -353,7 +353,7 @@ class Trial:
         test_img = self.get_test_image()
         self.writer.flush()
         lr_scheduler = OneCycleLR(self.optimizer_G,
-                                  max_lr=1e-2,
+                                  max_lr=0.5,
                                   steps_per_epoch=len(self.dataloader),
                                   epochs=epoch)
         meter = LossMeters('style_loss',
@@ -369,26 +369,56 @@ class Trial:
                 style = style.to(self.device)
 
                 generator_output = self.G(train)
-                style_loss = self.loss.style_loss(generator_output, style) * style_weight
+                #style_loss = self.loss.style_loss(generator_output, style) * style_weight
                 content_loss = self.loss.content_loss(generator_output, train) * content_weight
-                recon_loss = self.loss.reconstruction_loss(generator_output, train) * recon_weight
-                tv_loss = self.loss.total_variation_loss(generator_output) * tv_weight
-                total_loss = style_loss + content_loss + recon_loss + tv_loss
+                #recon_loss = self.loss.reconstruction_loss(generator_output, train) * recon_weight
+                #tv_loss = self.loss.total_variation_loss(generator_output) * tv_weight
+                total_loss = content_loss
                 total_loss.backward()
                 self.optimizer_G.step()
                 lr_scheduler.step()
 
-                meter.update(style_loss, content_loss)
+                meter.update(content_loss.detach())
 
-                if i % 50 == 0 and i != 0:
-
-                    self.writer.add_scalars(f'{self.init_time} NOGAN generator losses',
-                                            meter.as_dict('avg'),
-                                            i + epoch * len(self.dataloader))
-                    self.writer.flush()
-
+            self.writer.add_scalars(f'{self.init_time} NOGAN generator losses',
+                                    meter.as_dict('sum'),
+                                    epoch)
             self.write_weights(epoch + 1, write_D=False)
             self.eval_image(epoch, f'{self.init_time} reconstructed img', test_img)
+
+    def Discriminator_NOGAN(self, epoch: int, adv_weight: float = 1.0):
+        lr_scheduler = OneCycleLR(self.optimizer_D,
+                                  max_lr=1e-2,
+                                  steps_per_epoch=len(self.dataloader),
+                                  epochs=epoch)
+        meter = LossMeters('real_adv_loss', 'fake_adv_loss')
+
+        for epoch in tqdm(range(epoch)):
+
+            meter.reset()
+
+            for i, (style, smooth, train) in enumerate(self.dataloader, 0):
+                # train = transform(test_img).unsqueeze(0)
+                self.D.zero_grad(set_to_none=self.grad_set_to_none)
+                train = train.to(self.device)
+                style = style.to(self.device)
+
+                generator_output = self.G(train)
+                real_adv_loss = self.D(style).view(-1)
+                fake_adv_loss = self.D(generator_output.detach()).view(-1)
+                real_adv_loss = torch.pow(real_adv_loss - 1, 2).mean() * adv_weight
+                fake_adv_loss = torch.pow(fake_adv_loss, 2).mean() * adv_weight
+                total_loss = real_adv_loss + fake_adv_loss
+                total_loss.backward()
+                self.optimizer_D.step()
+                lr_scheduler.step()
+
+                meter.update(real_adv_loss.detach(), fake_adv_loss.detach())
+
+            self.writer.add_scalars(f'{self.init_time} NOGAN discriminator loss',
+                                    meter.as_dict('sum'),
+                                    epoch)
+            self.writer.flush()
 
     def get_test_image(self):
         """Get random test image."""

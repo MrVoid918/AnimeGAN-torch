@@ -54,14 +54,13 @@ class Loss(nn.Module):
         return G.div(a * b * c * d)
 
     def content_loss(self, input, target, per: bool = False):
-        '''real image & generated image'''
-
+        """Real image & generated image."""
         if input.shape[1] != 3:
             input = input.repeat(1, 3, 1, 1)
             target = target.repeat(1, 3, 1, 1)
 
         if self.normalize_mean_std:
-            input = torch.clip(self.inv_norm(input), 0, 1)
+            input = torch.clip(self.inv_norm(input), 0, 1)  # [-1,1]->[0,1]
             target = torch.clip(self.inv_norm(target), 0, 1)
             input = (input-self.mean) / self.std
             target = (target-self.mean) / self.std
@@ -70,14 +69,14 @@ class Loss(nn.Module):
             input = self.model(input)
             target = self.model(target).detach()
         else:
-            input = self.model[:18](input)
-            target = self.model[:18](target).detach()
-            '''Use Original perceptual loss relu-3_3'''
+            input = self.model[:16](input)
+            target = self.model[:16](target).detach()
+            '''Use Original perceptual loss relu3_3'''
 
         return F.l1_loss(input, target)
 
     def style_loss(self, input, target, grayscale=False, luma=True):
-        '''style image & generated image'''
+        '''Style image & generated image.'''
 
         if luma:
             input = torch.clip(self.inv_norm(input), 0, 1)
@@ -104,18 +103,20 @@ class Loss(nn.Module):
 
         return F.l1_loss(input_gram, target_gram)
 
-    def perceptual_loss(self, input, target, init_weight=1 / 32.):
+    def perceptual_loss(self, input, target, init_weight=1/32.):
         r'''ESTHER
             real image & transformed image'''
 
         if input.shape[1] != 3:
             input = input.repeat(1, 3, 1, 1)
             target = target.repeat(1, 3, 1, 1)
-        '''
-    if self.normalize_mean_std:
-      input = (input-self.mean) / self.std
-      target = (target-self.mean) / self.std
-    '''
+
+        if self.normalize_mean_std:
+            input = torch.clip(self.inv_norm(input), 0, 1)
+            target = torch.clip(self.inv_norm(target), 0, 1)
+            input = (input-self.mean) / self.std
+            target = (target-self.mean) / self.std
+
         if self.resize:
             input = self.transform(input, mode='bilinear', size=(224, 224), align_corners=False)
             target = self.transform(target, mode='bilinear', size=(224, 224), align_corners=False)
