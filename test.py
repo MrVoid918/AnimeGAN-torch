@@ -19,8 +19,8 @@ torch.backends.cudnn.benchmark = True
 '''
 if __name__ == '__main__':
 
-    trial = Trial(batch_size=16, D_lr=0.01)
-    trial.Discriminator_NOGAN(epoch=5)
+    trial = Trial(batch_size=16, G_lr=0.05)
+    trial.Generator_NOGAN(epoch=10)
 
 """
 arr = np.array((166.2, 144.2, 134.7, 129., 122.5, 117.8, 114.2,

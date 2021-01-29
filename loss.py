@@ -1,9 +1,8 @@
-# import torch.nn as nn
-import torchvision.transforms as transforms
 import torchvision.models as models
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import data_transform as tr
 
 import kornia
 
@@ -31,10 +30,6 @@ class Loss(nn.Module):
                                      self.model[2],
                                      self.model[4:6]])
 
-        self.inv_norm = transforms.Normalize([-1, -1, -1], [2., 2., 2.])  # [-1 , 1] -> [0, 1]
-        self.inv_gray_transform = transforms.Compose([transforms.Normalize([-1, -1, -1], [2., 2., 2.]),
-                                                      transforms.Grayscale(num_output_channels=3)])
-
         self.normalize_mean_std = normalize_mean_std
         if self.normalize_mean_std:
             self.mean = nn.Parameter(torch.tensor(
@@ -53,15 +48,15 @@ class Loss(nn.Module):
 
         return G.div(a * b * c * d)
 
-    def content_loss(self, input, target, per: bool = False):
+    def content_loss(self, input, target, per: bool = True):
         """Real image & generated image."""
         if input.shape[1] != 3:
             input = input.repeat(1, 3, 1, 1)
             target = target.repeat(1, 3, 1, 1)
 
         if self.normalize_mean_std:
-            input = torch.clip(self.inv_norm(input), 0, 1)  # [-1,1]->[0,1]
-            target = torch.clip(self.inv_norm(target), 0, 1)
+            input = torch.clip(tr.inv_norm(input), 0, 1)  # [-1,1]->[0,1]
+            target = torch.clip(tr.inv_norm(target), 0, 1)
             input = (input-self.mean) / self.std
             target = (target-self.mean) / self.std
 
@@ -79,14 +74,14 @@ class Loss(nn.Module):
         '''Style image & generated image.'''
 
         if luma:
-            input = torch.clip(self.inv_norm(input), 0, 1)
-            target = torch.clip(self.inv_norm(target), 0, 1)
+            input = torch.clip(tr.inv_norm(input), 0, 1)
+            target = torch.clip(tr.inv_norm(target), 0, 1)
             input = kornia.rgb_to_ycbcr(input)[:, 0].unsqueeze(1)
             target = kornia.rgb_to_ycbcr(target)[:, 0].unsqueeze(1)
 
         elif grayscale:
-            input = self.inv_gray_transform(input)
-            target = self.inv_gray_transform(input)
+            input = tr.inv_gray_transform(input)
+            target = tr.inv_gray_transform(input)
         '''
     elif self.normalize_mean_std:
       input = (input - self.mean) / self.std
@@ -112,8 +107,8 @@ class Loss(nn.Module):
             target = target.repeat(1, 3, 1, 1)
 
         if self.normalize_mean_std:
-            input = torch.clip(self.inv_norm(input), 0, 1)
-            target = torch.clip(self.inv_norm(target), 0, 1)
+            input = torch.clip(tr.inv_norm(input), 0, 1)
+            target = torch.clip(tr.inv_norm(target), 0, 1)
             input = (input-self.mean) / self.std
             target = (target-self.mean) / self.std
 
@@ -138,8 +133,8 @@ class Loss(nn.Module):
         return total_loss
 
     def reconstruction_loss(self, input, target):
-        input = torch.clip(self.inv_norm(input), 0, 1)
-        target = torch.clip(self.inv_norm(target), 0, 1)
+        input = torch.clip(tr.inv_norm(input), 0, 1)
+        target = torch.clip(tr.inv_norm(target), 0, 1)
         # kornia function requires in range [0-1]
         input = kornia.rgb_to_ycbcr(input)
         target = kornia.rgb_to_ycbcr(target).detach()

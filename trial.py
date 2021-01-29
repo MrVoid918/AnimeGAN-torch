@@ -138,8 +138,7 @@ class Trial:
                     img_caption: str = "sample_image",
                     step: int = 0):
 
-        inv_norm = transforms.Normalize([-1, -1, -1], [2., 2., 2.])
-        image = inv_norm(image)  # [-1, 1] -> [0, 1]
+        image = torch.clip(tr.inv_norm(image), 0, 1)  # [-1, 1] -> [0, 1]
         image *= 255.  # [0, 1] -> [0, 255]
         image = image.permute(1, 2, 0).to(dtype=torch.uint8)
         self.writer.add_image(img_caption, image, step, dataformats='HWC')
@@ -334,7 +333,7 @@ class Trial:
         self.train_1()
 
     def save_trial(self, epoch: int, train_type: str):
-        save_dir = Path(f"Trial_{train_type}_{self.init_time}.pt")
+        save_dir = Path(f"{train_type}_{self.init_time}.pt")
         training_details = {"epoch": epoch,
                             "generator": {"generator_state_dict": self.G.state_dict(),
                                           "optimizer_G_state_dict": self.optimizer_G.state_dict(), },
@@ -348,16 +347,16 @@ class Trial:
                         style_weight: float = 20.,
                         content_weight: float = 1.2,
                         recon_weight: float = 10.,
-                        tv_weight: float = 1.):
+                        tv_weight: float = 0.1,):
         """Training Generator in NOGAN manner (Feature Loss only)."""
         test_img = self.get_test_image()
         self.writer.flush()
+        max_lr = self.G_lr * 10.
         lr_scheduler = OneCycleLR(self.optimizer_G,
-                                  max_lr=0.5,
+                                  max_lr=max_lr,
                                   steps_per_epoch=len(self.dataloader),
                                   epochs=epoch)
-        meter = LossMeters('style_loss',
-                           'content_loss')
+        meter = LossMeters('content_loss', 'recon_loss', 'tv_loss')
         for epoch in tqdm(range(epoch)):
 
             meter.reset()
@@ -366,32 +365,40 @@ class Trial:
                 # train = transform(test_img).unsqueeze(0)
                 self.G.zero_grad(set_to_none=self.grad_set_to_none)
                 train = train.to(self.device)
-                style = style.to(self.device)
+                #style = style.to(self.device)
 
                 generator_output = self.G(train)
                 #style_loss = self.loss.style_loss(generator_output, style) * style_weight
                 content_loss = self.loss.content_loss(generator_output, train) * content_weight
-                #recon_loss = self.loss.reconstruction_loss(generator_output, train) * recon_weight
-                #tv_loss = self.loss.total_variation_loss(generator_output) * tv_weight
-                total_loss = content_loss
+                recon_loss = self.loss.reconstruction_loss(generator_output, train) * recon_weight
+                tv_loss = self.loss.total_variation_loss(generator_output) * tv_weight
+                total_loss = content_loss + tv_loss + recon_loss
                 total_loss.backward()
                 self.optimizer_G.step()
                 lr_scheduler.step()
 
-                meter.update(content_loss.detach())
+                meter.update(content_loss.detach(), recon_loss.detach(), tv_loss.detach())
 
             self.writer.add_scalars(f'{self.init_time} NOGAN generator losses',
                                     meter.as_dict('sum'),
                                     epoch)
             self.write_weights(epoch + 1, write_D=False)
             self.eval_image(epoch, f'{self.init_time} reconstructed img', test_img)
+        self.save_trial(epoch, f'G_NG_{self.init_time}')
 
-    def Discriminator_NOGAN(self, epoch: int, adv_weight: float = 1.0):
+    def Discriminator_NOGAN(self,
+                            epoch: int = 3,
+                            max_lr: float = 0.1,
+                            adv_weight: float = 1.0,
+                            edge_weight: float = 1.0):
+
         lr_scheduler = OneCycleLR(self.optimizer_D,
-                                  max_lr=0.1,
+                                  max_lr=max_lr,
                                   steps_per_epoch=len(self.dataloader),
                                   epochs=epoch)
-        meter = LossMeters('real_adv_loss', 'fake_adv_loss')
+        meter = LossMeters('real_adv_loss', 'fake_adv_loss', 'gray_loss')
+        if self.init_time is None:
+            self.init_time = datetime.datetime.now().strftime("%H:%M:%S")
 
         for epoch in tqdm(range(epoch)):
 
@@ -408,7 +415,41 @@ class Trial:
                 fake_adv_loss = self.D(generator_output.detach()).view(-1)
                 real_adv_loss = torch.pow(real_adv_loss - 1, 2).mean() * adv_weight
                 fake_adv_loss = torch.pow(fake_adv_loss, 2).mean() * adv_weight
-                total_loss = real_adv_loss + fake_adv_loss
+                gray_train = tr.inv_gray_transform(style)
+                greyscale_output = self.D(gray_train).view(-1)
+                gray_loss = torch.pow(greyscale_output, 2).mean()
+                total_loss = real_adv_loss + fake_adv_loss + gray_loss
+                total_loss.backward()
+                self.optimizer_D.step()
+                lr_scheduler.step()
+
+                meter.update(real_adv_loss.detach(), fake_adv_loss.detach(), gray_loss.detach())
+
+            self.writer.add_scalars(f'{self.init_time} NOGAN discriminator loss',
+                                    meter.as_dict('sum'),
+                                    epoch)
+            self.writer.flush()
+
+    def GAN_NOGAN(self, epoch: int = 1):
+        for epoch in tqdm(range(epoch)):
+
+            meter.reset()
+
+            for i, (style, smooth, train) in enumerate(self.dataloader, 0):
+                # train = transform(test_img).unsqueeze(0)
+                self.D.zero_grad(set_to_none=self.grad_set_to_none)
+                train = train.to(self.device)
+                style = style.to(self.device)
+
+                generator_output = self.G(train)
+                real_adv_loss = self.D(style).view(-1)
+                fake_adv_loss = self.D(generator_output.detach()).view(-1)
+                real_adv_loss = torch.pow(real_adv_loss - 1, 2).mean() * adv_weight
+                fake_adv_loss = torch.pow(fake_adv_loss, 2).mean() * adv_weight
+                gray_train = tr.inv_gray_transform(style)
+                greyscale_output = self.D(gray_train).view(-1)
+                gray_loss = torch.pow(greyscale_output, 2).mean()
+                total_loss = real_adv_loss + fake_adv_loss + gray_loss
                 total_loss.backward()
                 self.optimizer_D.step()
                 lr_scheduler.step()
@@ -422,7 +463,7 @@ class Trial:
 
     def get_test_image(self):
         """Get random test image."""
-        test_img_dir = Path(self.data_dir).joinpath('test/test_photo256').resolve()
+        test_img_dir = Path(self.data_dir).joinpath('test/test_photo256')
         test_img_dir = random.choice(list(test_img_dir.glob('**/*')))
         test_img = Image.open(test_img_dir)
         self.init_time = datetime.datetime.now().strftime("%H:%M:%S")
