@@ -218,7 +218,7 @@ class Trial:
                 style_loss = self.loss.style_loss(generator_output, style)
                 content_loss = self.loss.content_loss(generator_output, train)
                 recon_loss = self.loss.reconstruction_loss(generator_output, train)
-                tv_loss = self.loss.total_variation_loss(generator_output)
+                tv_loss = self.loss.tv_loss(generator_output)
 
                 '''
                 print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
@@ -261,7 +261,7 @@ class Trial:
         test_img = Image.open(test_img_dir)
 
         if self.init_time is None:
-            self.init_time = datetime.datetime.now().strftime("%H:%M:%S")
+            self.init_time = datetime.datetime.now().strftime("%H:%M")
 
         self.writer.add_image(f'sample_image {self.init_time}',
                               np.asarray(test_img), dataformats='HWC')
@@ -337,10 +337,10 @@ class Trial:
     def save_trial(self, epoch: int, train_type: str):
         save_dir = Path(f"{train_type}_{self.init_time}.pt")
         training_details = {"epoch": epoch,
-                            "generator": {"generator_state_dict": self.G.state_dict(),
-                                          "optimizer_G_state_dict": self.optimizer_G.state_dict(), },
-                            "discriminator": {"discriminator_state_dict": self.D.state_dict(),
-                                              "optimizer_D_state_dict": self.optimizer_D.state_dict()}}
+                            "gen": {"gen_state_dict": self.G.state_dict(),
+                                    "optim_G_state_dict": self.optimizer_G.state_dict(), },
+                            "dis": {"disr_state_dict": self.D.state_dict(),
+                                    "optim_D_state_dict": self.optimizer_D.state_dict()}}
 
         torch.save(training_details, save_dir.as_posix())
 
@@ -390,35 +390,41 @@ class Trial:
                     recon_loss = 0.
 
                 if 'tv_loss' in loss:
-                    tv_loss = self.loss.total_variation_loss(generator_output) * tv_weight
+                    tv_loss = self.loss.tv_loss(generator_output) * tv_weight
                 else:
                     tv_loss = 0.
-
-                total_loss = 0
 
                 total_loss = content_loss + tv_loss + recon_loss + style_loss
                 total_loss.backward()
                 self.optimizer_G.step()
                 lr_scheduler.step()
-
                 total_losses += total_loss.detach()
+                loss_dict = {'content_loss': content_loss,
+                             'style_loss': style_loss,
+                             'recon_loss': recon_loss,
+                             'tv_loss': tv_loss}
+
+                losses = [loss_dict[loss_type] for loss_type in loss]
+                meter.update(*losses)
 
             total_loss_arr = np.append(total_loss_arr, total_losses.item())
             self.writer.add_scalars(f'{self.init_time} NOGAN generator losses',
                                     meter.as_dict('sum'),
                                     epoch)
 
-            if epoch > 2:
-                if np.gradient(total_loss_arr).size != 0:
-                    fig = plt.figure(figsize=(8, 8))
-                    X = np.arange(epoch - 1)
-                    Y = np.gradient(total_loss_arr)
-                    plt.plot(X, Y)
-                    thresh = -1.0
-                    plt.axhline(thresh, c='r')
-                self.writer.add_figure(f"{self.init_time}", fig, epoch)
             self.write_weights(epoch + 1, write_D=False)
             self.eval_image(epoch, f'{self.init_time} reconstructed img', test_img)
+            if epoch > 2:
+                fig = plt.figure(figsize=(8, 8))
+                X = np.arange(len(total_loss_arr))
+                Y = np.gradient(total_loss_arr)
+                plt.plot(X, Y)
+                thresh = -1.0
+                plt.axhline(thresh, c='r')
+                plt.title(f"{self.init_time}")
+                self.writer.add_figure(f"{self.init_time}", fig, epoch)
+                if Y[-1] > thresh:
+                    break
 
         self.save_trial(epoch, f'G_NG_{self.init_time}')
 
@@ -434,7 +440,7 @@ class Trial:
                                   epochs=epoch)
         meter = LossMeters('real_adv_loss', 'fake_adv_loss', 'gray_loss')
         if self.init_time is None:
-            self.init_time = datetime.datetime.now().strftime("%H:%M:%S")
+            self.init_time = datetime.datetime.now().strftime("%H:%M")
 
         for epoch in tqdm(range(epoch)):
 
@@ -527,7 +533,7 @@ class Trial:
         test_img_dir = Path(self.data_dir).joinpath('test/test_photo256')
         test_img_dir = random.choice(list(test_img_dir.glob('**/*')))
         test_img = Image.open(test_img_dir)
-        self.init_time = datetime.datetime.now().strftime("%H:%M:%S")
+        self.init_time = datetime.datetime.now().strftime("%H:%M")
         self.writer.add_image(f'{self.init_time} sample_image',
                               np.asarray(test_img), dataformats='HWC')
         self.writer.flush()

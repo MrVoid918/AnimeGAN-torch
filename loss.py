@@ -143,7 +143,8 @@ class Loss(nn.Module):
 
         return loss
 
-    def total_variation_loss(self, input):
-        reg_loss = torch.sum(torch.abs(input[:, :, :, :-1] - input[:, :, :, 1:])) + \
+    def tv_loss(self, input):
+        """Total Variation Loss."""
+        tv_loss = torch.sum(torch.abs(input[:, :, :, :-1] - input[:, :, :, 1:])) + \
             torch.sum(torch.abs(input[:, :, :-1, :] - input[:, :, 1:, :]))
-        return reg_loss
+        return tv_loss
