@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     trial = Trial(batch_size=8, G_lr=0.05)
     torch.backends.cudnn.benchmark = True
-    trial.Generator_NOGAN(epoch=10)
+    trial.Generator_NOGAN(epochs=10)
 
 """
 arr = np.array((166.2, 144.2, 134.7, 129., 122.5, 117.8, 114.2,

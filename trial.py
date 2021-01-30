@@ -358,7 +358,7 @@ class Trial:
                                   max_lr=max_lr,
                                   steps_per_epoch=len(self.dataloader),
                                   epochs=epochs)
-        meter = LossMeters('content_loss', 'recon_loss', 'tv_loss')
+        meter = LossMeters(*loss)
         total_loss_arr = np.array([])
         # meter = LossMeters(*loss)
         for epoch in tqdm(range(epochs)):
@@ -373,30 +373,49 @@ class Trial:
                 # style = style.to(self.device)
 
                 generator_output = self.G(train)
-                # style_loss = self.loss.style_loss(generator_output, style) * style_weight
-                content_loss = self.loss.content_loss(generator_output, train) * content_weight
-                recon_loss = self.loss.reconstruction_loss(generator_output, train) * recon_weight
-                tv_loss = self.loss.total_variation_loss(generator_output) * tv_weight
-                total_loss = content_loss + tv_loss + recon_loss
+                if 'style_loss' in loss:
+                    style_loss = self.loss.style_loss(generator_output, style) * style_weight
+                else:
+                    style_loss = 0.
+
+                if 'content_loss' in loss:
+                    content_loss = self.loss.content_loss(generator_output, train) * content_weight
+                else:
+                    content_loss = 0.
+
+                if 'recon_loss' in loss:
+                    recon_loss = self.loss.reconstruction_loss(
+                        generator_output, train) * recon_weight
+                else:
+                    recon_loss = 0.
+
+                if 'tv_loss' in loss:
+                    tv_loss = self.loss.total_variation_loss(generator_output) * tv_weight
+                else:
+                    tv_loss = 0.
+
+                total_loss = 0
+
+                total_loss = content_loss + tv_loss + recon_loss + style_loss
                 total_loss.backward()
                 self.optimizer_G.step()
                 lr_scheduler.step()
 
-                meter.update(content_loss.detach(), recon_loss.detach(), tv_loss.detach())
-
                 total_losses += total_loss.detach()
 
+            total_loss_arr = np.append(total_loss_arr, total_losses.item())
             self.writer.add_scalars(f'{self.init_time} NOGAN generator losses',
                                     meter.as_dict('sum'),
                                     epoch)
 
-            if np.gradient(total_loss_arr).size() != 0:
-                fig = plt.figure(figsize=(8, 8))
-                X = np.arange(epoch)
-                Y = np.gradient(total_loss_arr)
-                fig.plot(X, Y)
-                thresh = -1.0
-                fig.axhline(thresh, c='r')
+            if epoch > 2:
+                if np.gradient(total_loss_arr).size != 0:
+                    fig = plt.figure(figsize=(8, 8))
+                    X = np.arange(epoch - 1)
+                    Y = np.gradient(total_loss_arr)
+                    plt.plot(X, Y)
+                    thresh = -1.0
+                    plt.axhline(thresh, c='r')
                 self.writer.add_figure(f"{self.init_time}", fig, epoch)
             self.write_weights(epoch + 1, write_D=False)
             self.eval_image(epoch, f'{self.init_time} reconstructed img', test_img)
