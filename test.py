@@ -14,12 +14,12 @@ import torch
 import numpy as np
 from meter import LossMeters
 import matplotlib.pyplot as plt
-'''
-torch.backends.cudnn.benchmark = True
-'''
+
+
 if __name__ == '__main__':
 
-    trial = Trial(batch_size=16, G_lr=0.05)
+    trial = Trial(batch_size=8, G_lr=0.05)
+    torch.backends.cudnn.benchmark = True
     trial.Generator_NOGAN(epoch=10)
 
 """
@@ -31,4 +31,8 @@ thresh = -1.0
 plt.axhline(thresh, c='r')
 plt.plot(x, grad)
 plt.show()
+
+arr = np.array((200.))
+grad = np.gradient(arr)
+print(grad)
 """
