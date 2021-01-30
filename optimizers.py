@@ -12,6 +12,7 @@ class GANOptimizer(optim.Optimizer):
             'SGD': optim.SGD,
             'RMS': optim.RMSprop,
             'ADAM': optim.Adam,
+            'ADAMW': optim.AdamW,
             'OADAM': OptimisticAdam,
             'XADAM': ExtraAdam
         }
