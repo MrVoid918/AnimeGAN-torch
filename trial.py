@@ -48,6 +48,8 @@ class Trial:
                                style_transform=tr.transform,
                                smooth_transform=tr.transform)
 
+        self.pin_memory = pin_memory
+
         self.dataloader = DataLoader(self.dataset,
                                      batch_size=batch_size,
                                      shuffle=True,
@@ -406,7 +408,7 @@ class Trial:
                              'recon_loss': recon_loss,
                              'tv_loss': tv_loss}
 
-                losses = [loss_dict[loss_type] for loss_type in loss]
+                losses = [loss_dict[loss_type].detach() for loss_type in loss]
                 meter.update(*losses)
 
             total_loss_arr = np.append(total_loss_arr, total_losses.item())
@@ -434,13 +436,17 @@ class Trial:
                             epochs: int = 3,
                             max_lr: float = 0.1,
                             adv_weight: float = 1.0,
-                            edge_weight: float = 1.0):
+                            edge_weight: float = 1.0,
+                            loss: List[str] = ['real_adv_loss',
+                                               'fake_adv_loss',
+                                               'gray_loss']):
+        """https://discuss.pytorch.org/t/scheduling-batch-size-in-dataloader/46443/2"""
 
         lr_scheduler = OneCycleLR(self.optimizer_D,
                                   max_lr=max_lr,
                                   steps_per_epoch=len(self.dataloader),
                                   epochs=epochs)
-        meter = LossMeters('real_adv_loss', 'fake_adv_loss', 'gray_loss')
+        meter = LossMeters(*loss)
         if self.init_time is None:
             self.init_time = datetime.datetime.now().strftime("%H:%M")
 
@@ -467,7 +473,12 @@ class Trial:
                 self.optimizer_D.step()
                 lr_scheduler.step()
 
-                meter.update(real_adv_loss.detach(), fake_adv_loss.detach(), gray_loss.detach())
+                loss_dict = {'real_adv_loss': real_adv_loss,
+                             'fake_adv_loss': fake_adv_loss,
+                             'gray_loss': gray_loss}
+
+                losses = [loss_dict[loss_type].detach() for loss_type in loss]
+                meter.update(*losses)
 
             self.writer.add_scalars(f'{self.init_time} NOGAN discriminator loss',
                                     meter.as_dict('sum'),
@@ -517,8 +528,14 @@ class Trial:
                 total_loss.backward()
                 self.optimizer_D.step()
 
-                dis_meter.update(real_adv_loss.detach(), fake_adv_loss.detach(),
-                                 gray_loss.detach(), edge_loss.detach())
+                loss_dict = {'real_adv_loss': real_adv_loss,
+                             'fake_adv_loss': fake_adv_loss,
+                             'gray_loss': gray_loss,
+                             'edge_loss': edge_loss}
+
+                loss = list(loss_dict.values())
+
+                dis_meter.update(*loss)
 
                 if i % 200 == 0 and i != 0:
                     self.writer.add_scalars(f'{self.init_time} NOGAN Dis loss',
