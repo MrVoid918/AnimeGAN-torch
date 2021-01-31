@@ -18,9 +18,12 @@ import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
 
-    trial = Trial(batch_size=8, G_lr=0.05)
+    trial = Trial(batch_size=8, G_lr=0.05, D_lr=0.05, optim_type="OADAM")
     torch.backends.cudnn.benchmark = True
-    trial.Generator_NOGAN(epochs=10)
+    trial.Generator_NOGAN(epochs=10, content_weight=3.0, recon_weight=10.,
+                          loss_type=['content_loss', 'recon_loss'],)
+    trial.Discriminator_NOGAN(epochs=3)
+    trial.GAN_NOGAN()
 
 """
 arr = np.array((166.2, 144.2, 134.7, 129., 122.5, 117.8, 114.2,

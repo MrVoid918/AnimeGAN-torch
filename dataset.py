@@ -7,7 +7,7 @@ from torchvision.datasets.folder import default_loader
 
 
 class Dataset(VisionDataset):
-    '''https://stackoverflow.com/a/59471851'''
+    """https://stackoverflow.com/a/59471851"""
 
     @staticmethod
     def make_dataset(root: str) -> list:

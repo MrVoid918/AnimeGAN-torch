@@ -62,8 +62,8 @@ class Trial:
         self.init_model_weights()
 
         self.optimizer_G = GANOptimizer(optim_type, self.G.parameters(),
-                                        lr=G_lr, betas=(0.5, 0.999), amsgrad=True)
-        self.optimizer_D = GANOptimizer(optim_type, self.D.parameters(),
+                                        lr=G_lr, betas=(0.5, 0.999), amsgrad=False)
+        self.optimizer_D = GANOptimizer("ADAMW", self.D.parameters(),
                                         lr=D_lr, betas=(0.5, 0.999), amsgrad=True)
 
         self.loss = Loss(device=self.device).to(self.device)
@@ -354,10 +354,12 @@ class Trial:
         """Training Generator in NOGAN manner (Feature Loss only)."""
         test_img = self.get_test_image()
         max_lr = self.G_lr * 10.
+
         lr_scheduler = OneCycleLR(self.optimizer_G,
                                   max_lr=max_lr,
                                   steps_per_epoch=len(self.dataloader),
                                   epochs=epochs)
+
         meter = LossMeters(*loss)
         total_loss_arr = np.array([])
         # meter = LossMeters(*loss)
@@ -429,7 +431,7 @@ class Trial:
         self.save_trial(epoch, f'G_NG_{self.init_time}')
 
     def Discriminator_NOGAN(self,
-                            epoch: int = 3,
+                            epochs: int = 3,
                             max_lr: float = 0.1,
                             adv_weight: float = 1.0,
                             edge_weight: float = 1.0):
@@ -437,12 +439,12 @@ class Trial:
         lr_scheduler = OneCycleLR(self.optimizer_D,
                                   max_lr=max_lr,
                                   steps_per_epoch=len(self.dataloader),
-                                  epochs=epoch)
+                                  epochs=epochs)
         meter = LossMeters('real_adv_loss', 'fake_adv_loss', 'gray_loss')
         if self.init_time is None:
             self.init_time = datetime.datetime.now().strftime("%H:%M")
 
-        for epoch in tqdm(range(epoch)):
+        for epoch in tqdm(range(epochs)):
 
             meter.reset()
 
@@ -472,11 +474,23 @@ class Trial:
                                     epoch)
             self.writer.flush()
 
-    def GAN_NOGAN(self, epoch: int = 1, adv_weight: float = 300., edge_weight: float = 0.1):
+    def GAN_NOGAN(self,
+                  epoch: int = 1,
+                  adv_weight: float = 300.,
+                  edge_weight: float = 0.1,
+                  GAN_G_lr: float = 0.0004,
+                  GAN_D_lr: float = 0.0008):
 
         test_img = self.get_test_image()
-        dis_meter = LossMeters('real_adv_loss', 'fake_adv_loss', 'gray_loss')
+        dis_meter = LossMeters('real_adv_loss', 'fake_adv_loss', 'gray_loss', 'edge_loss')
         gen_meter = LossMeters('adv_loss')
+
+        for g in self.optimizer_G.param_groups:
+            g['lr'] = GAN_G_lr
+
+        for g in self.optimizer_D.param_groups:
+            g['lr'] = GAN_D_lr
+
         for epoch in tqdm(range(epoch)):
 
             dis_meter.reset()
@@ -504,9 +518,9 @@ class Trial:
                 self.optimizer_D.step()
 
                 dis_meter.update(real_adv_loss.detach(), fake_adv_loss.detach(),
-                                 grayscale_output.detach(), edge_loss.detach())
+                                 gray_loss.detach(), edge_loss.detach())
 
-                if i % 50 == 0 and i != 0:
+                if i % 200 == 0 and i != 0:
                     self.writer.add_scalars(f'{self.init_time} NOGAN Dis loss',
                                             dis_meter.as_dict('avg'),
                                             i + epoch * len(self.dataloader))
@@ -520,13 +534,19 @@ class Trial:
 
                 gen_meter.update(adv_loss.detach())
 
-                if i % 50 == 0 and i != 0:
+                if i % 200 == 0 and i != 0:
                     self.writer.add_scalars(f'{self.init_time} NOGAN Gen loss',
                                             gen_meter.as_dict('avg'),
                                             i + epoch * len(self.dataloader))
                     self.writer.flush()
                     self.eval_image(i + epoch * len(self.dataloader),
                                     f'{self.init_time} reconstructed img', test_img)
+
+        for g in self.optimizer_G.param_groups:
+            g['lr'] = self.G_lr
+
+        for g in self.optimizer_D.param_groups:
+            g['lr'] = self.D_lr
 
     def get_test_image(self):
         """Get random test image."""
