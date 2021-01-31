@@ -366,7 +366,6 @@ class Trial:
 
         meter = LossMeters(*loss)
         total_loss_arr = np.array([])
-        # meter = LossMeters(*loss)
         for epoch in tqdm(range(epochs)):
 
             total_losses = 0
@@ -436,7 +435,6 @@ class Trial:
 
     def Discriminator_NOGAN(self,
                             epochs: int = 3,
-                            max_lr: float = 0.1,
                             adv_weight: float = 1.0,
                             edge_weight: float = 1.0,
                             loss: List[str] = ['real_adv_loss',
@@ -447,6 +445,7 @@ class Trial:
         for g in self.optimizer_D.param_groups:
             g['lr'] = self.D_lr
 
+        max_lr = self.D_lr * 10.
         lr_scheduler = OneCycleLR(self.optimizer_D,
                                   max_lr=max_lr,
                                   steps_per_epoch=len(self.dataloader),
@@ -491,7 +490,7 @@ class Trial:
             self.writer.flush()
 
     def GAN_NOGAN(self,
-                  epoch: int = 1,
+                  epochs: int = 1,
                   adv_weight: float = 300.,
                   edge_weight: float = 0.1,
                   GAN_G_lr: float = 0.00008,
@@ -509,7 +508,7 @@ class Trial:
 
         update_duration = len(self.data_loader) // 10
 
-        for epoch in tqdm(range(epoch)):
+        for epoch in tqdm(range(epochs)):
 
             dis_meter.reset()
 

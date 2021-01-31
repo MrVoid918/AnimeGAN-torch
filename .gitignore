@@ -5,3 +5,4 @@ logs/*
 Scripts/*
 Include\
 gradient.py
+model\__pycache__/*
