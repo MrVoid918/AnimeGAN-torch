@@ -1,6 +1,7 @@
 import torch.optim as optim
 from optim.omd import OptimisticAdam
 from optim.extragradient import ExtraAdam
+from adabelief_pytorch import AdaBelief
 
 "https://howto.lintel.in/python-__new__-magic-method-explained/"
 
@@ -14,7 +15,8 @@ class GANOptimizer(optim.Optimizer):
             'ADAM': optim.Adam,
             'ADAMW': optim.AdamW,
             'OADAM': OptimisticAdam,
-            'XADAM': ExtraAdam
+            'XADAM': ExtraAdam,
+            'ADAB': AdaBelief
         }
 
         if optim_type not in OPTIM_TYPE_MAP:

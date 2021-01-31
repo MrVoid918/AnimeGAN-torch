@@ -65,7 +65,7 @@ class Trial:
 
         self.optimizer_G = GANOptimizer(optim_type, self.G.parameters(),
                                         lr=G_lr, betas=(0.5, 0.999), amsgrad=False)
-        self.optimizer_D = GANOptimizer("ADAMW", self.D.parameters(),
+        self.optimizer_D = GANOptimizer(optim_type, self.D.parameters(),
                                         lr=D_lr, betas=(0.5, 0.999), amsgrad=True)
 
         self.loss = Loss(device=self.device).to(self.device)
@@ -258,7 +258,7 @@ class Trial:
                 G_train_iter: int = 1,
                 D_train_iter: int = 1):  # if threshold is 0., set to half of adversarial loss
 
-        test_img_dir = Path(self.data_dir).joinpath('test', 'test_photo256').resolve()
+        test_img_dir = Path(self.data_dir).joinpath('test', 'test_photo256')
         test_img_dir = random.choice(list(test_img_dir.glob('**/*')))
         test_img = Image.open(test_img_dir)
 
@@ -337,7 +337,7 @@ class Trial:
         self.train_1()
 
     def save_trial(self, epoch: int, train_type: str):
-        save_dir = Path(f"{train_type}_{self.init_time}.pt")
+        save_dir = Path(f"{train_type}.pt")
         training_details = {"epoch": epoch,
                             "gen": {"gen_state_dict": self.G.state_dict(),
                                     "optim_G_state_dict": self.optimizer_G.state_dict(), },
@@ -354,6 +354,8 @@ class Trial:
                         tv_weight: float = 1e-6,
                         loss: List[str] = ['content_loss']):
         """Training Generator in NOGAN manner (Feature Loss only)."""
+        for g in self.optimizer_G.param_groups:
+            g['lr'] = self.G_lr
         test_img = self.get_test_image()
         max_lr = self.G_lr * 10.
 
@@ -427,7 +429,7 @@ class Trial:
                 plt.axhline(thresh, c='r')
                 plt.title(f"{self.init_time}")
                 self.writer.add_figure(f"{self.init_time}", fig, epoch)
-                if Y[-1] > thresh:
+                if Y[-1] > thresh and Y[-2] > thresh:
                     break
 
         self.save_trial(epoch, f'G_NG_{self.init_time}')
@@ -441,6 +443,9 @@ class Trial:
                                                'fake_adv_loss',
                                                'gray_loss']):
         """https://discuss.pytorch.org/t/scheduling-batch-size-in-dataloader/46443/2"""
+
+        for g in self.optimizer_D.param_groups:
+            g['lr'] = self.D_lr
 
         lr_scheduler = OneCycleLR(self.optimizer_D,
                                   max_lr=max_lr,
@@ -489,8 +494,8 @@ class Trial:
                   epoch: int = 1,
                   adv_weight: float = 300.,
                   edge_weight: float = 0.1,
-                  GAN_G_lr: float = 0.0004,
-                  GAN_D_lr: float = 0.0008):
+                  GAN_G_lr: float = 0.00008,
+                  GAN_D_lr: float = 0.000016):
 
         test_img = self.get_test_image()
         dis_meter = LossMeters('real_adv_loss', 'fake_adv_loss', 'gray_loss', 'edge_loss')
@@ -501,6 +506,8 @@ class Trial:
 
         for g in self.optimizer_D.param_groups:
             g['lr'] = GAN_D_lr
+
+        update_duration = len(self.data_loader) // 10
 
         for epoch in tqdm(range(epoch)):
 
@@ -537,7 +544,7 @@ class Trial:
 
                 dis_meter.update(*loss)
 
-                if i % 200 == 0 and i != 0:
+                if i % update_duration == 0 and i != 0:
                     self.writer.add_scalars(f'{self.init_time} NOGAN Dis loss',
                                             dis_meter.as_dict('avg'),
                                             i + epoch * len(self.dataloader))
@@ -551,7 +558,7 @@ class Trial:
 
                 gen_meter.update(adv_loss.detach())
 
-                if i % 200 == 0 and i != 0:
+                if i % update_duration == 0 and i != 0:
                     self.writer.add_scalars(f'{self.init_time} NOGAN Gen loss',
                                             gen_meter.as_dict('avg'),
                                             i + epoch * len(self.dataloader))
@@ -564,6 +571,8 @@ class Trial:
 
         for g in self.optimizer_D.param_groups:
             g['lr'] = self.D_lr
+
+        self.save_trial(epoch, f'GAN_NG_{self.init_time}')
 
     def get_test_image(self):
         """Get random test image."""

@@ -14,17 +14,35 @@ import torch
 import numpy as np
 from meter import LossMeters
 import matplotlib.pyplot as plt
+import typer
+from typer import Argument, Option
+from typing import List, Optional
+
+
+def main(batch_size: int = Argument(32),
+         G_lr: float = Argument(0.05, help="Learning rate for generator training"),
+         D_lr: float = Argument(0.05, help="Learning rate for discriminator training"),
+         GAN_G_lr: float = Argument(0.05, help="Learning rate for GAN generator training"),
+         GAN_D_lr: float = Argument(0.05, help="Learning rate for GAN discriminator training"),
+         G_epoch: int = Argument(10, help="Iteration of generator training"),
+         D_epoch: int = Argument(3, help="Iteration of discriminator training"),
+         itr: int = Argument(1, help="Iteration of whole NOGAN training"),
+         optim_type: str = Argument("ADAB", help="Options of Optimizers for Generator")):
+    """
+    NOGAN training Trial.
+    """
+    torch.backends.cudnn.benchmark = True
+    assert(itr > 0), "Number must be bigger than 0"
+    for _ in range(itr):
+        trial = Trial(batch_size=32, G_lr=G_lr, D_lr=D_lr, optim_type=optim_type)
+        trial.Generator_NOGAN(epochs=G_epoch, content_weight=3.0, recon_weight=10.,
+                              loss=['content_loss', 'recon_loss'],)
+        trial.Discriminator_NOGAN(epochs=D_epoch)
+        trial.GAN_NOGAN()
 
 
 if __name__ == '__main__':
-
-    trial = Trial(batch_size=32, G_lr=0.05, D_lr=0.05, optim_type="OADAM")
-    torch.backends.cudnn.benchmark = True
-    trial.Generator_NOGAN(epochs=10, content_weight=3.0, recon_weight=10.,
-                          loss=['content_loss', 'recon_loss'],)
-    trial.Discriminator_NOGAN(epochs=3)
-    trial.GAN_NOGAN()
-
+    typer.run(main)
 """
 arr = np.array((166.2, 144.2, 134.7, 129., 122.5, 117.8, 114.2,
                 111.6, 109.1, 108.1, 105.6, 104, 102.7, 101.9, 101.8))
