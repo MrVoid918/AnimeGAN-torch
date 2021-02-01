@@ -44,17 +44,3 @@ def main(batch_size: int = Option(32, "-b"),
 
 if __name__ == '__main__':
     typer.run(main)
-"""
-arr = np.array((166.2, 144.2, 134.7, 129., 122.5, 117.8, 114.2,
-                111.6, 109.1, 108.1, 105.6, 104, 102.7, 101.9, 101.8))
-x = np.arange(len(arr))
-grad = np.gradient(arr)
-thresh = -1.0
-plt.axhline(thresh, c='r')
-plt.plot(x, grad)
-plt.show()
-
-arr = np.array((200.))
-grad = np.gradient(arr)
-print(grad)
-"""
