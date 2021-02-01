@@ -33,12 +33,12 @@ def main(batch_size: int = Option(32, "-b"),
     """
     torch.backends.cudnn.benchmark = True
     assert(itr > 0), "Number must be bigger than 0"
+    trial = Trial(batch_size=batch_size, G_lr=G_lr, D_lr=D_lr, optim_type=optim_type)
     for _ in range(itr):
-        trial = Trial(batch_size=batch_size, G_lr=G_lr, D_lr=D_lr, optim_type=optim_type)
         trial.Generator_NOGAN(epochs=G_epoch, content_weight=3.0, recon_weight=10.,
                               loss=['content_loss', 'recon_loss'],)
         trial.Discriminator_NOGAN(epochs=D_epoch)
-        trial.GAN_NOGAN(itr, GAN_G_lr=GAN_G_lr, GAN_D_lr=GAN_D_lr)
+        trial.GAN_NOGAN(1, GAN_G_lr=GAN_G_lr, GAN_D_lr=GAN_D_lr)
 
 
 if __name__ == '__main__':

@@ -506,7 +506,7 @@ class Trial:
         for g in self.optimizer_D.param_groups:
             g['lr'] = GAN_D_lr
 
-        update_duration = len(self.data_loader) // 10
+        update_duration = len(self.dataloader) // 10
 
         for epoch in tqdm(range(epochs)):
 
@@ -528,7 +528,7 @@ class Trial:
 
                 real_adv_loss = torch.pow(real_adv_loss - 1, 2).mean() * adv_weight
                 fake_adv_loss = torch.pow(fake_adv_loss, 2).mean() * adv_weight
-                gray_loss = torch.pow(grayscale_output, 2).mean()
+                gray_loss = torch.pow(grayscale_output, 2).mean() * adv_weight
                 edge_loss = torch.pow(smoothed_output, 2).mean() * edge_weight
                 total_loss = real_adv_loss + fake_adv_loss + gray_loss + edge_loss
                 total_loss.backward()
