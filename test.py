@@ -20,8 +20,8 @@ from typing import List, Optional
 
 
 def main(batch_size: int = Option(32, "-b"),
-         G_lr: float = Option(0.05, help="Learning rate for generator training"),
-         D_lr: float = Option(0.05, help="Learning rate for discriminator training"),
+         G_lr: float = Option(0.01, help="Learning rate for generator training"),
+         D_lr: float = Option(0.01, help="Learning rate for discriminator training"),
          GAN_G_lr: float = Option(0.00008, help="Learning rate for GAN generator training"),
          GAN_D_lr: float = Option(0.00016, help="Learning rate for GAN discriminator training"),
          G_epoch: int = Option(10, help="Iteration of generator training"),
