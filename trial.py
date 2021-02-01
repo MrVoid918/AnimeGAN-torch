@@ -86,7 +86,11 @@ class Trial:
         self.level = level
 
         if level != "O0":
-            self.G, self.optimizer_G =
+            self.fp16 = True
+            [self.G, self.D], [self.optimizer_G, self.optimizer_D] = amp.initialize(
+                [self.G, self.D], [self.optimizer_G, self.optimizer_D], opt_level=self.level)
+        else:
+            self.fp16 = False
 
     def init_model_weights(self):
         self.G.apply(weights_init)
@@ -345,11 +349,19 @@ class Trial:
 
     def save_trial(self, epoch: int, train_type: str):
         save_dir = Path(f"{train_type}.pt")
-        training_details = {"epoch": epoch,
-                            "gen": {"gen_state_dict": self.G.state_dict(),
-                                    "optim_G_state_dict": self.optimizer_G.state_dict(), },
-                            "dis": {"disr_state_dict": self.D.state_dict(),
-                                    "optim_D_state_dict": self.optimizer_D.state_dict()}}
+        if self.fp16:
+            training_details = {"epoch": epoch,
+                                "gen": {"gen_state_dict": self.G.state_dict(),
+                                        "optim_G_state_dict": self.optimizer_G.state_dict()},
+                                "dis": {"disr_state_dict": self.D.state_dict(),
+                                        "optim_D_state_dict": self.optimizer_D.state_dict()},
+                                "amp": amp.state_dict()}
+        else:
+            training_details = {"epoch": epoch,
+                                "gen": {"gen_state_dict": self.G.state_dict(),
+                                        "optim_G_state_dict": self.optimizer_G.state_dict()},
+                                "dis": {"disr_state_dict": self.D.state_dict(),
+                                        "optim_D_state_dict": self.optimizer_D.state_dict()}}
 
         torch.save(training_details, save_dir.as_posix())
 
@@ -407,7 +419,12 @@ class Trial:
                     tv_loss = 0.
 
                 total_loss = content_loss + tv_loss + recon_loss + style_loss
-                total_loss.backward()
+                if self.fp16:
+                    with amp.scale_loss(total_loss, self.optimizer_G) as scaled_loss:
+                        scaled_loss.backward()
+                else:
+                    total_loss.backward()
+
                 self.optimizer_G.step()
                 lr_scheduler.step()
                 total_losses += total_loss.detach()
@@ -480,7 +497,11 @@ class Trial:
                 greyscale_output = self.D(gray_train).view(-1)
                 gray_loss = torch.pow(greyscale_output, 2).mean()
                 total_loss = real_adv_loss + fake_adv_loss + gray_loss
-                total_loss.backward()
+                if self.fp16:
+                    with amp.scale_loss(total_loss, self.optimizer_D) as scaled_loss:
+                        scaled_loss.backward()
+                else:
+                    total_loss.backward()
                 self.optimizer_D.step()
                 lr_scheduler.step()
 
