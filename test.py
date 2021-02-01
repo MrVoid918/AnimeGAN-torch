@@ -27,13 +27,14 @@ def main(batch_size: int = Option(32, "-b"),
          G_epoch: int = Option(10, help="Iteration of generator training"),
          D_epoch: int = Option(3, help="Iteration of discriminator training"),
          itr: int = Option(1, help="Iteration of whole NOGAN training"),
-         optim_type: str = Option("ADAB", help="Options of Optimizers for Generator")):
+         optim_type: str = Option("ADAB", help="Options of Optimizers for Generator"),
+         level: str = "O1"):
     """
     NOGAN training Trial.
     """
     torch.backends.cudnn.benchmark = True
     assert(itr > 0), "Number must be bigger than 0"
-    trial = Trial(batch_size=batch_size, G_lr=G_lr, D_lr=D_lr, optim_type=optim_type)
+    trial = Trial(batch_size=batch_size, G_lr=G_lr, D_lr=D_lr, optim_type=optim_type, level=level)
     for _ in range(itr):
         trial.Generator_NOGAN(epochs=G_epoch, content_weight=3.0, recon_weight=10.,
                               loss=['content_loss', 'recon_loss'],)

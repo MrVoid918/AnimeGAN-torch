@@ -24,6 +24,8 @@ from optimizers import GANOptimizer
 from loss import Loss
 from meter import AverageMeter, LossMeters
 
+from apex import amp
+
 
 class Trial:
 
@@ -35,6 +37,7 @@ class Trial:
                  init_lr: float = 0.5,
                  G_lr: float = 0.0004,
                  D_lr: float = 0.0008,
+                 level: str = "O1",
                  init_training_epoch: int = 10,
                  train_epoch: int = 10,
                  optim_type: str = "ADAM",
@@ -80,6 +83,10 @@ class Trial:
         self.train_epoch = train_epoch
 
         self.init_time = None
+        self.level = level
+
+        if level != "O0":
+            self.G, self.optimizer_G =
 
     def init_model_weights(self):
         self.G.apply(weights_init)
