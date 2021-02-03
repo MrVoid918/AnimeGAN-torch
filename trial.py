@@ -86,7 +86,7 @@ class Trial:
         self.init_time = None
         self.level = level
 
-        if level != "O0":
+        if self.level != "O0":
             self.fp16 = True
             [self.G, self.D], [self.optimizer_G, self.optimizer_D] = amp.initialize(
                 [self.G, self.D], [self.optimizer_G, self.optimizer_D], opt_level=self.level)
@@ -349,7 +349,7 @@ class Trial:
         self.train_1()
 
     def save_trial(self, epoch: int, train_type: str):
-        save_dir = Path(f"{train_type}.pt")
+        save_dir = Path(f"{train_type}_{self.level}.pt")
         training_details = {"epoch": epoch,
                             "gen": {"gen_state_dict": self.G.state_dict(),
                                     "optim_G_state_dict": self.optimizer_G.state_dict()},
