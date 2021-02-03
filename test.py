@@ -27,6 +27,7 @@ def main(batch_size: int = Option(32, "-b"),
          itr: int = Option(1, help="Iteration of whole NOGAN training"),
          optim_type: str = Option("ADAB", help="Options of Optimizers for Generator"),
          level: str = Option("O1", help="FP16 Training Flags, Refer to Apex Docs"),
+         adv_weight: float = Option(1.0, help="Weight for discriminator loss"),
          load_dir: Optional[Path] = Option(None)):
     """
     NOGAN training Trial.
@@ -39,8 +40,8 @@ def main(batch_size: int = Option(32, "-b"),
     for _ in range(itr):
         trial.Generator_NOGAN(epochs=G_epoch, content_weight=3.0, recon_weight=10.,
                               loss=['content_loss', 'recon_loss'],)
-        trial.Discriminator_NOGAN(epochs=D_epoch)
-        trial.GAN_NOGAN(GAN_epoch, GAN_G_lr=GAN_G_lr, GAN_D_lr=GAN_D_lr)
+        trial.Discriminator_NOGAN(epochs=D_epoch, adv_weight=adv_weight)
+        trial.GAN_NOGAN(GAN_epoch, GAN_G_lr=GAN_G_lr, GAN_D_lr=GAN_D_lr, adv_weight=adv_weight)
 
 
 if __name__ == '__main__':
