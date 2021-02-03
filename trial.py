@@ -6,6 +6,7 @@ from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import List
+import typer
 
 import torch.nn as nn
 import torch
@@ -360,10 +361,21 @@ class Trial:
             training_details = {"epoch": epoch,
                                 "gen": {"gen_state_dict": self.G.state_dict(),
                                         "optim_G_state_dict": self.optimizer_G.state_dict()},
-                                "dis": {"disr_state_dict": self.D.state_dict(),
+                                "dis": {"dis_state_dict": self.D.state_dict(),
                                         "optim_D_state_dict": self.optimizer_D.state_dict()}}
 
         torch.save(training_details, save_dir.as_posix())
+
+    def load_trial(self, dir: Path):
+        assert dir.is_dir(), "No such directory"
+        assert dir.suffix == ".pt", "Filetype not compatible"
+        state_dicts = torch.load(dir.as_posix())
+        self.G.load_state_dict(state_dicts["gen"]["gen_state_dict"])
+        self.optimizer_G.load_state_dict(state_dicts["gen"]["optim_G_state_dict"])
+        self.D.load_state_dict(state_dicts["dis"]["dis_state_dict"])
+        self.optimizer_D.load_state_dict(state_dicts["dis"]["optim_D_state_dict"])
+        if self.fp16:
+            amp.load_state_dict(state_dicts["amp"])
 
     def Generator_NOGAN(self,
                         epochs: int = 1,
@@ -534,7 +546,7 @@ class Trial:
         for g in self.optimizer_D.param_groups:
             g['lr'] = GAN_D_lr
 
-        update_duration = len(self.dataloader) // 10
+        update_duration = len(self.dataloader) // 15
 
         for epoch in tqdm(range(epochs)):
 
@@ -573,7 +585,7 @@ class Trial:
 
                 if i % update_duration == 0 and i != 0:
                     self.writer.add_scalars(f'{self.init_time} NOGAN Dis loss',
-                                            dis_meter.as_dict('avg'),
+                                            dis_meter.as_dict('val'),
                                             i + epoch * len(self.dataloader))
                     self.writer.flush()
 
@@ -587,7 +599,7 @@ class Trial:
 
                 if i % update_duration == 0 and i != 0:
                     self.writer.add_scalars(f'{self.init_time} NOGAN Gen loss',
-                                            gen_meter.as_dict('avg'),
+                                            gen_meter.as_dict('val'),
                                             i + epoch * len(self.dataloader))
                     self.writer.flush()
                     self.eval_image(i + epoch * len(self.dataloader),
