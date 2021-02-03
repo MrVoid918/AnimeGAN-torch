@@ -459,7 +459,7 @@ class Trial:
                 plt.axhline(thresh, c='r')
                 plt.title(f"{self.init_time}")
                 self.writer.add_figure(f"{self.init_time}", fig, epoch)
-                if Y[-1] > thresh and Y[-2] > thresh:
+                if Y[-1] > thresh:
                     break
 
         self.save_trial(epoch, f'G_NG_{self.init_time}')
@@ -502,7 +502,7 @@ class Trial:
                 fake_adv_loss = torch.pow(fake_adv_loss, 2).mean() * adv_weight
                 gray_train = tr.inv_gray_transform(style)
                 greyscale_output = self.D(gray_train).view(-1)
-                gray_loss = torch.pow(greyscale_output, 2).mean()
+                gray_loss = torch.pow(greyscale_output, 2).mean() * adv_weight
                 total_loss = real_adv_loss + fake_adv_loss + gray_loss
                 if self.fp16:
                     with amp.scale_loss(total_loss, self.optimizer_D) as scaled_loss:
@@ -541,7 +541,7 @@ class Trial:
         for g in self.optimizer_D.param_groups:
             g['lr'] = GAN_D_lr
 
-        update_duration = len(self.dataloader) // 15
+        update_duration = len(self.dataloader) // 20
 
         for epoch in tqdm(range(epochs)):
 
