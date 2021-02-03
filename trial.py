@@ -153,7 +153,7 @@ class Trial:
                     img_caption: str = "sample_image",
                     step: int = 0):
 
-        image = torch.clip(tr.inv_norm(image), 0, 1)  # [-1, 1] -> [0, 1]
+        image = torch.clip(tr.inv_norm(image).to(torch.float), 0, 1)  # [-1, 1] -> [0, 1]
         image *= 255.  # [0, 1] -> [0, 255]
         image = image.permute(1, 2, 0).to(dtype=torch.uint8)
         self.writer.add_image(img_caption, image, step, dataformats='HWC')
