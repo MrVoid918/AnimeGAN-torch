@@ -350,24 +350,18 @@ class Trial:
 
     def save_trial(self, epoch: int, train_type: str):
         save_dir = Path(f"{train_type}.pt")
+        training_details = {"epoch": epoch,
+                            "gen": {"gen_state_dict": self.G.state_dict(),
+                                    "optim_G_state_dict": self.optimizer_G.state_dict()},
+                            "dis": {"dis_state_dict": self.D.state_dict(),
+                                    "optim_D_state_dict": self.optimizer_D.state_dict()}}
         if self.fp16:
-            training_details = {"epoch": epoch,
-                                "gen": {"gen_state_dict": self.G.state_dict(),
-                                        "optim_G_state_dict": self.optimizer_G.state_dict()},
-                                "dis": {"disr_state_dict": self.D.state_dict(),
-                                        "optim_D_state_dict": self.optimizer_D.state_dict()},
-                                "amp": amp.state_dict()}
-        else:
-            training_details = {"epoch": epoch,
-                                "gen": {"gen_state_dict": self.G.state_dict(),
-                                        "optim_G_state_dict": self.optimizer_G.state_dict()},
-                                "dis": {"dis_state_dict": self.D.state_dict(),
-                                        "optim_D_state_dict": self.optimizer_D.state_dict()}}
+            training_details["amp"] = amp.state_dict()
 
         torch.save(training_details, save_dir.as_posix())
 
     def load_trial(self, dir: Path):
-        assert dir.is_dir(), "No such directory"
+        assert dir.is_file(), "No such directory"
         assert dir.suffix == ".pt", "Filetype not compatible"
         state_dicts = torch.load(dir.as_posix())
         self.G.load_state_dict(state_dicts["gen"]["gen_state_dict"])
@@ -376,6 +370,7 @@ class Trial:
         self.optimizer_D.load_state_dict(state_dicts["dis"]["optim_D_state_dict"])
         if self.fp16:
             amp.load_state_dict(state_dicts["amp"])
+        typer.echo("Loaded Weights")
 
     def Generator_NOGAN(self,
                         epochs: int = 1,
