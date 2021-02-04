@@ -498,11 +498,13 @@ class Trial:
                 generator_output = self.G(train)
                 real_adv_loss = self.D(style).view(-1)
                 fake_adv_loss = self.D(generator_output.detach()).view(-1)
-                real_adv_loss = torch.pow(real_adv_loss - 1, 2).mean() * adv_weight
-                fake_adv_loss = torch.pow(fake_adv_loss, 2).mean() * adv_weight
+                real_adv_loss = torch.pow(real_adv_loss - 1, 2).mean() * 1.7 * adv_weight
+                fake_adv_loss = torch.pow(fake_adv_loss, 2).mean() * 1.7 * adv_weight
                 gray_train = tr.inv_gray_transform(style)
                 greyscale_output = self.D(gray_train).view(-1)
-                gray_loss = torch.pow(greyscale_output, 2).mean() * adv_weight
+                gray_loss = torch.pow(greyscale_output, 2).mean() * 1.7 * adv_weight
+                "According to AnimeGANv2 implementation, every loss is scaled by individual weights and then scaled with adv_weight"
+                "https://github.com/TachibanaYoshino/AnimeGANv2/blob/5946b6afcca5fc28518b75a763c0f561ff5ce3d6/tools/ops.py#L217"
                 total_loss = real_adv_loss + fake_adv_loss + gray_loss
                 if self.fp16:
                     with amp.scale_loss(total_loss, self.optimizer_D) as scaled_loss:
@@ -561,10 +563,10 @@ class Trial:
                 gray_smooth_data = tr.inv_gray_transform(smooth)
                 smoothed_output = self.D(gray_smooth_data).view(-1)
 
-                real_adv_loss = torch.pow(real_adv_loss - 1, 2).mean() * adv_weight
-                fake_adv_loss = torch.pow(fake_adv_loss, 2).mean() * adv_weight
-                gray_loss = torch.pow(grayscale_output, 2).mean() * adv_weight
-                edge_loss = torch.pow(smoothed_output, 2).mean() * edge_weight
+                real_adv_loss = torch.pow(real_adv_loss - 1, 2).mean() * 1.7
+                fake_adv_loss = torch.pow(fake_adv_loss, 2).mean() * 1.7
+                gray_loss = torch.pow(grayscale_output, 2).mean() * 1.7
+                edge_loss = torch.pow(smoothed_output, 2).mean() * 1.0
                 total_loss = real_adv_loss + fake_adv_loss + gray_loss + edge_loss
                 total_loss.backward()
                 self.optimizer_D.step()
