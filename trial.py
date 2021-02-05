@@ -565,10 +565,10 @@ class Trial:
                 gray_smooth_data = tr.inv_gray_transform(smooth)
                 smoothed_output = self.D(gray_smooth_data).view(-1)
 
-                real_adv_loss = torch.pow(real_adv_loss - 1, 2).mean() * 1.7
-                fake_adv_loss = torch.pow(fake_adv_loss, 2).mean() * 1.7
-                gray_loss = torch.pow(grayscale_output, 2).mean() * 1.7
-                edge_loss = torch.pow(smoothed_output, 2).mean() * 1.0
+                real_adv_loss = torch.pow(real_adv_loss - 1, 2).mean() * 1.7 * adv_weight
+                fake_adv_loss = torch.pow(fake_adv_loss, 2).mean() * 1.7 * adv_weight
+                gray_loss = torch.pow(grayscale_output, 2).mean() * 1.7 * adv_weight
+                edge_loss = torch.pow(smoothed_output, 2).mean() * 1.0 * adv_weight
                 total_loss = real_adv_loss + fake_adv_loss + gray_loss + edge_loss
                 total_loss.backward()
                 self.optimizer_D.step()
