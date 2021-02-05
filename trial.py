@@ -86,7 +86,7 @@ class Trial:
         self.init_time = None
         self.level = level
 
-        if self.level != "O0":
+        if self.level != "O0" and device != "cpu":
             self.fp16 = True
             [self.G, self.D], [self.optimizer_G, self.optimizer_D] = amp.initialize(
                 [self.G, self.D], [self.optimizer_G, self.optimizer_D], opt_level=self.level)
