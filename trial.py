@@ -547,7 +547,9 @@ class Trial:
 
         for epoch in tqdm(range(epochs)):
 
+            G_loss_arr = np.array([])
             dis_meter.reset()
+            count = 0
 
             for i, (style, smooth, train) in enumerate(self.dataloader, 0):
                 self.D.zero_grad(set_to_none=self.grad_set_to_none)
@@ -599,14 +601,21 @@ class Trial:
                                             gen_meter.as_dict('val'),
                                             i + epoch * len(self.dataloader))
                     self.writer.flush()
+                    G_loss_arr = np.append(G_loss_arr, adv_loss.item())
                     self.eval_image(i + epoch * len(self.dataloader),
                                     f'{self.init_time} reconstructed img', test_img)
-
-        for g in self.optimizer_G.param_groups:
-            g['lr'] = self.G_lr
-
-        for g in self.optimizer_D.param_groups:
-            g['lr'] = self.D_lr
+                    if len(G_loss_arr) > 2:
+                        fig = plt.figure(figsize=(8, 8))
+                        X = np.arange(len(G_loss_arr))
+                        Y = np.gradient(G_loss_arr)
+                        plt.plot(X, Y)
+                        thresh = -1.0
+                        plt.axhline(thresh, c='r')
+                        plt.title(f"{self.init_time}")
+                        self.writer.add_figure(f"{self.init_time}", fig, count)
+                        count += 1
+                        if Y[-1] > thresh:
+                            break
 
         self.save_trial(epoch, f'GAN_NG_{self.init_time}')
 

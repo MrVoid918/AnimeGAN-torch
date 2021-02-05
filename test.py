@@ -35,6 +35,7 @@ def main(batch_size: int = Option(32, "-b"),
     torch.backends.cudnn.benchmark = True
     assert(itr > 0), "Number must be bigger than 0"
     trial = Trial(batch_size=batch_size, G_lr=G_lr, D_lr=D_lr, optim_type=optim_type, level=level)
+    decreased_lr = False
     if load_dir is not None:
         trial.load_trial(load_dir)
     for _ in range(itr):
