@@ -25,7 +25,10 @@ from optimizers import GANOptimizer
 from loss import Loss
 from meter import AverageMeter, LossMeters
 
-from apex import amp
+try:
+    from apex import amp
+except:
+    raise Exception("No Apex imported")
 
 
 class Trial:
