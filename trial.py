@@ -401,10 +401,10 @@ class Trial:
                 # train = transform(test_img).unsqueeze(0)
                 self.G.zero_grad(set_to_none=self.grad_set_to_none)
                 train = train.to(self.device)
-                # style = style.to(self.device)
 
                 generator_output = self.G(train)
                 if 'style_loss' in loss:
+                    style = style.to(self.device)
                     style_loss = self.loss.style_loss(generator_output, style) * style_weight
                 else:
                     style_loss = 0.
