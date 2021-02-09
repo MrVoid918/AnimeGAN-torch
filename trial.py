@@ -531,14 +531,20 @@ class Trial:
 
     def GAN_NOGAN(self,
                   epochs: int = 1,
+                  GAN_G_lr: float = 0.00008,
+                  GAN_D_lr: float = 0.000016,
+                  D_loss: List[str] = ["real_adv_loss", "fake_adv_loss", "gray_loss", "edge_loss"],
                   adv_weight: float = 300.,
                   edge_weight: float = 0.1,
-                  GAN_G_lr: float = 0.00008,
-                  GAN_D_lr: float = 0.000016):
+                  G_loss: List[str] = ["content_loss", "style_loss", "recon_loss"],
+                  style_weight: float = 20.,
+                  content_weight: float = 1.2,
+                  recon_weight: float = 10.,
+                  tv_weight: float = 1e-6,):
 
         test_img = self.get_test_image()
-        dis_meter = LossMeters('real_adv_loss', 'fake_adv_loss', 'gray_loss', 'edge_loss')
-        gen_meter = LossMeters('adv_loss')
+        dis_meter = LossMeters(*D_loss)
+        gen_meter = LossMeters(*G_loss)
 
         for g in self.optimizer_G.param_groups:
             g['lr'] = GAN_G_lr
@@ -572,16 +578,16 @@ class Trial:
                 fake_adv_loss = torch.pow(fake_adv_loss, 2).mean() * 1.7 * adv_weight
                 gray_loss = torch.pow(grayscale_output, 2).mean() * 1.7 * adv_weight
                 edge_loss = torch.pow(smoothed_output, 2).mean() * 1.0 * adv_weight
-                total_loss = real_adv_loss + fake_adv_loss + gray_loss + edge_loss
-                total_loss.backward()
+                total_D_loss = real_adv_loss + fake_adv_loss + gray_loss + edge_loss
+                total_D_loss.backward()
                 self.optimizer_D.step()
 
-                loss_dict = {'real_adv_loss': real_adv_loss,
-                             'fake_adv_loss': fake_adv_loss,
-                             'gray_loss': gray_loss,
-                             'edge_loss': edge_loss}
+                D_loss_dict = {'real_adv_loss': real_adv_loss,
+                               'fake_adv_loss': fake_adv_loss,
+                               'gray_loss': gray_loss,
+                               'edge_loss': edge_loss}
 
-                loss = list(loss_dict.values())
+                loss = list(D_loss_dict.values())
 
                 dis_meter.update(*loss)
 
@@ -594,10 +600,39 @@ class Trial:
                 self.G.zero_grad(set_to_none=self.grad_set_to_none)
                 adv_loss = self.D(generator_output).view(-1)
                 adv_loss = torch.pow(adv_loss - 1, 2).mean() * adv_weight
-                adv_loss.backward()
+
+                if 'style_loss' in G_loss:
+                    style_loss = self.loss.style_loss(generator_output, style) * style_weight
+                else:
+                    style_loss = 0.
+
+                if 'content_loss' in G_loss:
+                    content_loss = self.loss.content_loss(generator_output, train) * content_weight
+                else:
+                    content_loss = 0.
+
+                if 'recon_loss' in G_loss:
+                    recon_loss = self.loss.reconstruction_loss(
+                        generator_output, train) * recon_weight
+                else:
+                    recon_loss = 0.
+
+                if 'tv_loss' in G_loss:
+                    tv_loss = self.loss.tv_loss(generator_output) * tv_weight
+                else:
+                    tv_loss = 0.
+                total_G_loss = adv_loss + content_loss + style_loss + recon_loss + tv_loss
+                total_G_loss.backward()
                 self.optimizer_G.step()
 
-                gen_meter.update(adv_loss.detach())
+                G_loss_dict = {'adv_loss': adv_loss,
+                               'content_loss': content_loss,
+                               'style_loss': style_loss,
+                               'recon_loss': recon_loss,
+                               'tv_loss': tv_loss}
+
+                losses = [G_loss_dict[loss_type].detach() for loss_type in G_loss]
+                gen_meter.update(*losses)
 
                 if i % update_duration == 0 and i != 0:
                     self.writer.add_scalars(f'{self.init_time} NOGAN Gen loss',
@@ -607,6 +642,7 @@ class Trial:
                     G_loss_arr = np.append(G_loss_arr, adv_loss.item())
                     self.eval_image(i + epoch * len(self.dataloader),
                                     f'{self.init_time} reconstructed img', test_img)
+                    """
                     if len(G_loss_arr) > 2:
                         fig = plt.figure(figsize=(8, 8))
                         X = np.arange(len(G_loss_arr))
@@ -618,7 +654,7 @@ class Trial:
                         self.writer.add_figure(f"{self.init_time}", fig, count)
                         count += 1
                         if Y[-1] > thresh:
-                            break
+                            break"""
 
         self.save_trial(epoch, f'GAN_NG_{self.init_time}')
 
