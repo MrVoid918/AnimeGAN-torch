@@ -536,7 +536,7 @@ class Trial:
                   D_loss: List[str] = ["real_adv_loss", "fake_adv_loss", "gray_loss", "edge_loss"],
                   adv_weight: float = 300.,
                   edge_weight: float = 0.1,
-                  G_loss: List[str] = ["content_loss", "style_loss", "recon_loss"],
+                  G_loss: List[str] = ["adv_loss", "content_loss", "style_loss", "recon_loss"],
                   style_weight: float = 20.,
                   content_weight: float = 1.2,
                   recon_weight: float = 10.,
