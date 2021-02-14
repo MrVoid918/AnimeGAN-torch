@@ -53,6 +53,22 @@ class ConvNormLRelu(nn.Module):
         return x
 
 
+class ConvBNLRelu(nn.Module):
+
+    def __init__(self, nin, nout, kernel_size, padding, stride, dilation, bias=False):
+        super(ConvNormLRelu, self).__init__()
+        self.conv = Depthwise_Separable_Conv(
+            nin, nout, kernel_size, stride, padding, dilation, bias=bias)
+        self.norm = nn.InstanceNorm2d(nout)
+        self.lrelu = nn.LeakyReLU(negative_slope=0.2, inplace=True)
+
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.norm(x)
+        x = self.lrelu(x)
+        return x
+
+
 class InvertedResidual(nn.Module):
     def __init__(self, inp, oup, stride, dilation, expand_ratio=1):
         super(InvertedResidual, self).__init__()
