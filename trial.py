@@ -9,6 +9,7 @@ from typing import List
 import typer
 
 import torch.nn as nn
+import torch.nn.functional as F
 import torch
 from torch.utils.data import DataLoader
 import torch.utils.tensorboard as tensorboard
@@ -485,6 +486,7 @@ class Trial:
                                   steps_per_epoch=len(self.dataloader),
                                   epochs=epochs)
         meter = LossMeters(*loss)
+        total_loss_arr = np.array([])
         if self.init_time is None:
             self.init_time = datetime.datetime.now().strftime("%H:%M")
 
@@ -528,6 +530,17 @@ class Trial:
                                     meter.as_dict('sum'),
                                     epoch)
             self.writer.flush()
+            if epoch > 2:
+                fig = plt.figure(figsize=(8, 8))
+                X = np.arange(len(total_loss_arr))
+                Y = np.gradient(total_loss_arr)
+                plt.plot(X, Y)
+                thresh = -1.0
+                plt.axhline(thresh, c='r')
+                plt.title(f"{self.init_time}")
+                self.writer.add_figure(f"{self.init_time}", fig, epoch)
+                if Y[-1] > thresh:
+                    break
 
     def GAN_NOGAN(self,
                   epochs: int = 1,
@@ -572,14 +585,37 @@ class Trial:
                 gray_train = tr.inv_gray_transform(style)
                 grayscale_output = self.D(gray_train).view(-1)
                 gray_smooth_data = tr.inv_gray_transform(smooth)
-                smoothed_output = self.D(gray_smooth_data).view(-1)
+                smoothed_output = self.D(smooth).view(-1)
 
-                real_adv_loss = torch.pow(real_adv_loss - 1, 2).mean() * 1.7 * adv_weight
-                fake_adv_loss = torch.pow(fake_adv_loss, 2).mean() * 1.7 * adv_weight
-                gray_loss = torch.pow(grayscale_output, 2).mean() * 1.7 * adv_weight
-                edge_loss = torch.pow(smoothed_output, 2).mean() * 1.0 * adv_weight
-                total_D_loss = real_adv_loss + fake_adv_loss + gray_loss + edge_loss
-                total_D_loss.backward()
+                #real_adv_loss = torch.pow(real_adv_loss - 1, 2).mean() * 1.7 * adv_weight
+                #fake_adv_loss = torch.pow(fake_adv_loss, 2).mean() * 1.7 * adv_weight
+                #gray_loss = torch.pow(grayscale_output, 2).mean() * 1.7 * adv_weight
+                #edge_loss = torch.pow(smoothed_output, 2).mean() * 1.0 * adv_weight
+                real_label = 1
+                fake_label = 0
+
+                label = torch.full((self.batch_size,), real_label,
+                                   dtype=torch.float, device=self.device)
+                real_adv_loss = F.binary_cross_entropy_with_logits(
+                    real_adv_loss, label) * adv_weight
+                real_adv_loss.backward()
+
+                label.fill_(fake_label)
+                fake_adv_loss = F.binary_cross_entropy_with_logits(
+                    fake_adv_loss, label) * adv_weight
+                fake_adv_loss.backward()
+
+                label.fill_(fake_label)
+                gray_loss = F.binary_cross_entropy_with_logits(
+                    grayscale_output, label) * adv_weight
+                gray_loss.backward()
+
+                edge_loss = F.binary_cross_entropy_with_logits(
+                    smoothed_output, label) * adv_weight
+                edge_loss.backward()
+
+                # total_D_loss = real_adv_loss + fake_adv_loss + gray_loss + edge_loss
+                # total_D_loss.backward()
                 self.optimizer_D.step()
 
                 D_loss_dict = {'real_adv_loss': real_adv_loss,
@@ -599,30 +635,36 @@ class Trial:
 
                 self.G.zero_grad(set_to_none=self.grad_set_to_none)
                 adv_loss = self.D(generator_output).view(-1)
-                adv_loss = torch.pow(adv_loss - 1, 2).mean() * adv_weight
+                label.fill_(real_label)
+                adv_loss = F.binary_cross_entropy_with_logits(
+                    adv_loss, label) * adv_weight
+                adv_loss.backward()
 
                 if 'style_loss' in G_loss:
                     style_loss = self.loss.style_loss(generator_output, style) * style_weight
+                    style_loss.backward()
                 else:
                     style_loss = 0.
 
                 if 'content_loss' in G_loss:
                     content_loss = self.loss.content_loss(generator_output, train) * content_weight
+                    content_loss.backward()
                 else:
                     content_loss = 0.
 
                 if 'recon_loss' in G_loss:
                     recon_loss = self.loss.reconstruction_loss(
                         generator_output, train) * recon_weight
+                    recon_loss.backward()
                 else:
                     recon_loss = 0.
 
                 if 'tv_loss' in G_loss:
                     tv_loss = self.loss.tv_loss(generator_output) * tv_weight
+                    tv_loss.backward()
                 else:
                     tv_loss = 0.
-                total_G_loss = adv_loss + content_loss + style_loss + recon_loss + tv_loss
-                total_G_loss.backward()
+
                 self.optimizer_G.step()
 
                 G_loss_dict = {'adv_loss': adv_loss,
@@ -642,19 +684,6 @@ class Trial:
                     G_loss_arr = np.append(G_loss_arr, adv_loss.item())
                     self.eval_image(i + epoch * len(self.dataloader),
                                     f'{self.init_time} reconstructed img', test_img)
-                    """
-                    if len(G_loss_arr) > 2:
-                        fig = plt.figure(figsize=(8, 8))
-                        X = np.arange(len(G_loss_arr))
-                        Y = np.gradient(G_loss_arr)
-                        plt.plot(X, Y)
-                        thresh = -1.0
-                        plt.axhline(thresh, c='r')
-                        plt.title(f"{self.init_time}")
-                        self.writer.add_figure(f"{self.init_time}", fig, count)
-                        count += 1
-                        if Y[-1] > thresh:
-                            break"""
 
         self.save_trial(epoch, f'GAN_NG_{self.init_time}')
 
