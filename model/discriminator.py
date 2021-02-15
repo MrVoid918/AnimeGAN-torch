@@ -8,11 +8,11 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
 
         self.net = nn.Sequential(ConvBNLRelu(3, 32, 3, 1, 2, 1, bias),
-                                 ConvBNLRelu(32, 1, 32, 3, 1, 2, 1, bias),
-                                 ConvBNLRelu(32, 1, 64, 3, 1, 2, 1, bias),
-                                 ConvBNLRelu(64, 1, 64, 3, 1, 2, 1, bias),
-                                 ConvBNLRelu(64, 1, 128, 3, 1, 2, 1, bias),
-                                 ConvBNLRelu(128, 1, 128, 3, 1, 2, 1, bias),
+                                 ConvBNLRelu(32, 32, 3, 1, 2, 1, bias),
+                                 ConvBNLRelu(32, 64, 3, 1, 2, 1, bias),
+                                 ConvBNLRelu(64, 64, 3, 1, 2, 1, bias),
+                                 ConvBNLRelu(64, 128, 3, 1, 2, 1, bias),
+                                 ConvBNLRelu(128, 128, 3, 1, 2, 1, bias),
                                  nn.Conv2d(128, 1, 4, bias=bias))
 
     def forward(self, x):
