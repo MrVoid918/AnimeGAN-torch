@@ -4,3 +4,5 @@ Lib/*
 logs/*
 Scripts/*
 Include\
+gradient.py
+buffer.py

@@ -44,7 +44,7 @@ class Loss(nn.Module):
 
         features = input.view(a * b, c * d)
 
-        G = torch.bmm(features, features.t())
+        G = torch.mm(features, features.t())
 
         return G.div(a * b * c * d)
 
@@ -82,14 +82,14 @@ class Loss(nn.Module):
         elif grayscale:
             input = tr.inv_gray_transform(input)
             target = tr.inv_gray_transform(input)
-        '''
-    elif self.normalize_mean_std:
-      input = (input - self.mean) / self.std
-      target = (target - self.mean) / self.std
-    '''
+
         if input.shape[1] != 3:
             input = input.repeat(1, 3, 1, 1)
             target = target.repeat(1, 3, 1, 1)
+
+        if self.normalize_mean_std:
+            input = (input - self.mean) / self.std
+            target = (target - self.mean) / self.std
 
         input = self.model(input)
         input_gram = self.gram_matrix(input)
@@ -143,7 +143,8 @@ class Loss(nn.Module):
 
         return loss
 
-    def total_variation_loss(self, input):
-        reg_loss = torch.sum(torch.abs(input[:, :, :, :-1] - input[:, :, :, 1:])) + \
+    def tv_loss(self, input):
+        """Total Variation Loss."""
+        tv_loss = torch.sum(torch.abs(input[:, :, :, :-1] - input[:, :, :, 1:])) + \
             torch.sum(torch.abs(input[:, :, :-1, :] - input[:, :, 1:, :]))
-        return reg_loss
+        return tv_loss
