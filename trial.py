@@ -604,24 +604,20 @@ class Trial:
                                    dtype=torch.float, device=self.device)
                 real_adv_loss = F.binary_cross_entropy_with_logits(
                     real_adv_loss, label) * adv_weight
-                real_adv_loss.backward()
 
                 label.fill_(fake_label)
                 fake_adv_loss = F.binary_cross_entropy_with_logits(
                     fake_adv_loss, label) * adv_weight
-                fake_adv_loss.backward()
 
                 label.fill_(fake_label)
                 gray_loss = F.binary_cross_entropy_with_logits(
                     grayscale_output, label) * adv_weight
-                gray_loss.backward()
 
                 edge_loss = F.binary_cross_entropy_with_logits(
                     smoothed_output, label) * adv_weight
-                edge_loss.backward()
 
-                # total_D_loss = real_adv_loss + fake_adv_loss + gray_loss + edge_loss
-                # total_D_loss.backward()
+                total_D_loss = real_adv_loss + fake_adv_loss + gray_loss + edge_loss
+                total_D_loss.backward()
                 self.optimizer_D.step()
 
                 D_loss_dict = {'real_adv_loss': real_adv_loss,
@@ -644,33 +640,31 @@ class Trial:
                 label.fill_(real_label)
                 adv_loss = F.binary_cross_entropy_with_logits(
                     adv_loss, label) * adv_weight
-                adv_loss.backward()
 
                 if 'style_loss' in G_loss:
                     style_loss = self.loss.style_loss(generator_output, style) * style_weight
-                    style_loss.backward()
+
                 else:
                     style_loss = 0.
 
                 if 'content_loss' in G_loss:
                     content_loss = self.loss.content_loss(generator_output, train) * content_weight
-                    content_loss.backward()
                 else:
                     content_loss = 0.
 
                 if 'recon_loss' in G_loss:
                     recon_loss = self.loss.reconstruction_loss(
                         generator_output, train) * recon_weight
-                    recon_loss.backward()
                 else:
                     recon_loss = 0.
 
                 if 'tv_loss' in G_loss:
                     tv_loss = self.loss.tv_loss(generator_output) * tv_weight
-                    tv_loss.backward()
                 else:
                     tv_loss = 0.
 
+                total_loss = adv_loss content_loss + tv_loss + recon_loss + style_loss
+                total_loss.backward()
                 self.optimizer_G.step()
 
                 G_loss_dict = {'adv_loss': adv_loss,
