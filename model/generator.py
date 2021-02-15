@@ -16,6 +16,7 @@ class Generator(nn.Module):
                                       InvertedResidual(512, 512, 1, 1, 2),
                                       InvertedResidual(512, 512, 1, 1, 2),
                                       InvertedResidual(512, 512, 1, 1, 2),
+                                      InvertedResidual(512, 512, 1, 1, 2),
                                       InvertedResidual(512, 512, 1, 1, 2))
 
         self.upsample = nn.Sequential(Upsample(512),  # 512->256
