@@ -37,10 +37,10 @@ class Depthwise_Separable_Conv(nn.Module):
         return out
 
 
-class ConvNormLRelu(nn.Module):
+class ConvINLRelu(nn.Module):
 
     def __init__(self, nin, nout, kernel_size, padding, stride, dilation, bias=False):
-        super(ConvNormLRelu, self).__init__()
+        super(ConvINLRelu, self).__init__()
         self.conv = Depthwise_Separable_Conv(
             nin, nout, kernel_size, stride, padding, dilation, bias=bias)
         self.norm = nn.InstanceNorm2d(nout)
@@ -56,7 +56,7 @@ class ConvNormLRelu(nn.Module):
 class ConvBNLRelu(nn.Module):
 
     def __init__(self, nin, nout, kernel_size, padding, stride, dilation, bias=False):
-        super(ConvNormLRelu, self).__init__()
+        super(ConvBNLRelu, self).__init__()
         self.conv = Depthwise_Separable_Conv(
             nin, nout, kernel_size, stride, padding, dilation, bias=bias)
         self.norm = nn.BatchNorm2d(nout)
@@ -79,7 +79,7 @@ class InvertedResidual(nn.Module):
         self.use_res_connect = self.stride == 1 and inp == oup
 
         if expand_ratio == 1:
-            self.conv = ConvNormLRelu(hidden_dim, oup, 3, 1, stride, dilation=dilation)
+            self.conv = ConvINLRelu(hidden_dim, oup, 3, 1, stride, dilation=dilation)
             '''nn.Sequential(
                 # dw
                 nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups=hidden_dim, bias=False),
@@ -116,7 +116,7 @@ class Upsample(nn.Module):
 
     def __init__(self, nin):
         super(Upsample, self).__init__()
-        self.conv = ConvNormLRelu(nin, nin // 2, 3, 1, 1, 1)
+        self.conv = ConvINLRelu(nin, nin // 2, 3, 1, 1, 1)
 
     def forward(self, x):
         x = F.interpolate(x, scale_factor=2)
