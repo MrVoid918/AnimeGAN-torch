@@ -57,6 +57,7 @@ class Trial:
                                smooth_transform=tr.transform)
 
         self.pin_memory = pin_memory
+        self.batch_size = batch_size
 
         self.dataloader = DataLoader(self.dataset,
                                      batch_size=batch_size,
