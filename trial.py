@@ -20,7 +20,7 @@ import json
 import data_transform as tr
 from dataset import Dataset
 from weights_init import weights_init
-from model.discriminator import PatchDiscriminator
+from model.discriminator import PatchDiscriminator, Discriminator
 from model.generator import Generator
 from optimizers import GANOptimizer
 from loss import Loss
@@ -43,6 +43,7 @@ class Trial:
                  G_lr: float = 0.0004,
                  D_lr: float = 0.0008,
                  level: str = "O1",
+                 patch: bool = False,
                  init_training_epoch: int = 10,
                  train_epoch: int = 10,
                  optim_type: str = "ADAM",
@@ -68,7 +69,11 @@ class Trial:
         self.device = torch.device(device) if torch.cuda.is_available() else torch.device('cpu')
 
         self.G = Generator().to(self.device)
-        self.D = PatchDiscriminator().to(self.device)
+        self.patch = patch
+        if self.patch:
+            self.D = PatchDiscriminator().to(self.device)
+        else:
+            self.D = Discriminator().to(self.device)
 
         self.init_model_weights()
 
