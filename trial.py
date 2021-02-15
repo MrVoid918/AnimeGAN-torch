@@ -598,28 +598,10 @@ class Trial:
                 gray_smooth_data = tr.inv_gray_transform(smooth)
                 smoothed_output = self.D(smooth).view(-1)
 
-                #real_adv_loss = torch.pow(real_adv_loss - 1, 2).mean() * 1.7 * adv_weight
-                #fake_adv_loss = torch.pow(fake_adv_loss, 2).mean() * 1.7 * adv_weight
-                #gray_loss = torch.pow(grayscale_output, 2).mean() * 1.7 * adv_weight
-                #edge_loss = torch.pow(smoothed_output, 2).mean() * 1.0 * adv_weight
-                real_label = 1
-                fake_label = 0
-
-                label = torch.full((self.batch_size,), real_label,
-                                   dtype=torch.float, device=self.device)
-                real_adv_loss = F.binary_cross_entropy_with_logits(
-                    real_adv_loss, label) * adv_weight
-
-                label.fill_(fake_label)
-                fake_adv_loss = F.binary_cross_entropy_with_logits(
-                    fake_adv_loss, label) * adv_weight
-
-                label.fill_(fake_label)
-                gray_loss = F.binary_cross_entropy_with_logits(
-                    grayscale_output, label) * adv_weight
-
-                edge_loss = F.binary_cross_entropy_with_logits(
-                    smoothed_output, label) * adv_weight
+                real_adv_loss = torch.pow(real_adv_loss - 1, 2).mean() * 1.7 * adv_weight
+                fake_adv_loss = torch.pow(fake_adv_loss, 2).mean() * 1.7 * adv_weight
+                gray_loss = torch.pow(grayscale_output, 2).mean() * 1.7 * adv_weight
+                edge_loss = torch.pow(smoothed_output, 2).mean() * 1.0 * adv_weight
 
                 total_D_loss = real_adv_loss + fake_adv_loss + gray_loss + edge_loss
                 total_D_loss.backward()
@@ -642,9 +624,7 @@ class Trial:
 
                 self.G.zero_grad(set_to_none=self.grad_set_to_none)
                 adv_loss = self.D(generator_output).view(-1)
-                label.fill_(real_label)
-                adv_loss = F.binary_cross_entropy_with_logits(
-                    adv_loss, label) * adv_weight
+                adv_loss = torch.pow(adv_loss - 1, 2).mean() * 1.7 * adv_weight
 
                 if 'style_loss' in G_loss:
                     style_loss = self.loss.style_loss(generator_output, style) * style_weight
