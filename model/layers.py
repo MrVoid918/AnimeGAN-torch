@@ -59,7 +59,7 @@ class ConvBNLRelu(nn.Module):
         super(ConvNormLRelu, self).__init__()
         self.conv = Depthwise_Separable_Conv(
             nin, nout, kernel_size, stride, padding, dilation, bias=bias)
-        self.norm = nn.InstanceNorm2d(nout)
+        self.norm = nn.BatchNorm2d(nout)
         self.lrelu = nn.LeakyReLU(negative_slope=0.2, inplace=True)
 
     def forward(self, x):
