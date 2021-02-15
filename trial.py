@@ -107,6 +107,10 @@ class Trial:
         self.G.apply(weights_init)
         self.D.apply(weights_init)
 
+    @classmethod
+    def from_config(cls):
+        pass
+
     def init_train(self, con_weight: float = 1.0):
 
         test_img = self.get_test_image()
@@ -402,15 +406,7 @@ class Trial:
 
         meter = LossMeters(*loss)
         total_loss_arr = np.array([])
-<<<<<<< HEAD
-        loss_meter = {"style_loss": lambda X, Y: self.loss.style_loss(X, Y) * style_weight,
-                      "content_loss": lambda X, Y: self.loss.content_loss(X, Y) * content_weight,
-                      "recon_loss": lambda X, Y: self.loss.reconstruction_loss(
-            X, Y) * recon_weight,
-            "tv_loss": lambda X, Y: self.loss.total_variation_loss(X) * tv_weight}
-        meter = LossMeters(*loss)
-=======
->>>>>>> NOGAN_FP16
+
         for epoch in tqdm(range(epochs)):
 
             total_losses = 0
