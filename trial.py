@@ -663,7 +663,7 @@ class Trial:
                 else:
                     tv_loss = 0.
 
-                total_loss = adv_loss content_loss + tv_loss + recon_loss + style_loss
+                total_loss = adv_loss + content_loss + tv_loss + recon_loss + style_loss
                 total_loss.backward()
                 self.optimizer_G.step()
 
