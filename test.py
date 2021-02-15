@@ -43,15 +43,3 @@ def main(batch_size: int = Option(32, "-b"),
                               loss=['content_loss', 'recon_loss'],)
         trial.Discriminator_NOGAN(epochs=D_epoch, adv_weight=adv_weight)
         trial.GAN_NOGAN(GAN_epoch, GAN_G_lr=GAN_G_lr, GAN_D_lr=GAN_D_lr, adv_weight=adv_weight)
-
-<<<<<<< HEAD
-#torch.backends.cudnn.benchmark = True
-
-if __name__ == '__main__':
-    trial = Trial(batch_size=32, device='cpu')
-    trial.Generator_NOGAN()
-=======
-
-if __name__ == '__main__':
-    typer.run(main)
->>>>>>> NOGAN
