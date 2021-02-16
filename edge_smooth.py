@@ -4,16 +4,17 @@ import cv2
 import argparse
 import tqdm
 
-def make_edge_smooth(dataset_name : str = "Shinkai", img_size : int = 256) :
 
-    file_list = Path('./dataset/{}/style'.format(dataset_name)).resolve()
-    save_dir = Path('./dataset/{}/smooth'.format(dataset_name)).resolve()
+def make_edge_smooth(dataset_name: str = "Shinkai", img_size: int = 256):
+
+    file_list = Path(f'./dataset/{dataset_name}/style').resolve()
+    save_dir = Path(f'./dataset/{dataset_name}/smooth').resolve()
 
     if not file_list.exists():
-      raise FileNotFoundError()
+        raise FileNotFoundError()
 
     if not save_dir.exists():
-      save_dir.mkdir()
+        save_dir.mkdir()
 
     kernel_size = 5
     kernel = np.ones((kernel_size, kernel_size), np.uint8)
@@ -45,6 +46,7 @@ def make_edge_smooth(dataset_name : str = "Shinkai", img_size : int = 256) :
                 np.multiply(pad_img[idx[0][i]:idx[0][i] + kernel_size, idx[1][i]:idx[1][i] + kernel_size, 2], gauss))
 
         cv2.imwrite(os.path.join(save_dir, file_name), gauss_img)
+
 
 def main():
     if __name__ == '__main__':

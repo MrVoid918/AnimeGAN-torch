@@ -40,6 +40,7 @@ class Loss(nn.Module):
         self.resize = resize
 
     def gram_matrix(self, input):
+        """Compute Gram Matrix."""
         a, b, c, d = input.size()
 
         features = input.view(a * b, c * d)
