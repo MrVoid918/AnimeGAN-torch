@@ -593,15 +593,16 @@ class Trial:
                 generator_output = self.G(train)
                 real_adv_loss = self.D(style).view(-1)
                 fake_adv_loss = self.D(generator_output.detach()).view(-1)
+                G_adv_loss = self.D(generator_output).view(-1)
                 gray_train = tr.inv_gray_transform(style)
                 grayscale_output = self.D(gray_train).view(-1)
                 gray_smooth_data = tr.inv_gray_transform(smooth)
                 smoothed_output = self.D(smooth).view(-1)
 
-                real_adv_loss = torch.pow(real_adv_loss - 1, 2).mean() * 1.7 * adv_weight
-                fake_adv_loss = torch.pow(fake_adv_loss, 2).mean() * 1.7 * adv_weight
-                gray_loss = torch.pow(grayscale_output, 2).mean() * 1.7 * adv_weight
-                edge_loss = torch.pow(smoothed_output, 2).mean() * 1.0 * adv_weight
+                real_adv_loss = torch.square(real_adv_loss - 1.).mean() * 1.7 * adv_weight
+                fake_adv_loss = torch.square(fake_adv_loss).mean() * 1.7 * adv_weight
+                gray_loss = torch.square(grayscale_output).mean() * 1.7 * adv_weight
+                edge_loss = torch.square(smoothed_output).mean() * 1.0 * adv_weight
 
                 total_D_loss = real_adv_loss + fake_adv_loss + gray_loss + edge_loss
                 total_D_loss.backward()
@@ -623,12 +624,10 @@ class Trial:
                     self.writer.flush()
 
                 self.G.zero_grad(set_to_none=self.grad_set_to_none)
-                adv_loss = self.D(generator_output).view(-1)
-                adv_loss = torch.pow(adv_loss - 1, 2).mean() * 1.7 * adv_weight
+                G_adv_loss = torch.square(G_adv_loss - 1.).mean() * adv_weight
 
                 if 'style_loss' in G_loss:
                     style_loss = self.loss.style_loss(generator_output, style) * style_weight
-
                 else:
                     style_loss = 0.
 
@@ -648,11 +647,11 @@ class Trial:
                 else:
                     tv_loss = 0.
 
-                total_G_loss = adv_loss + content_loss + tv_loss + recon_loss + style_loss
+                total_G_loss = G_adv_loss + content_loss + tv_loss + recon_loss + style_loss
                 total_G_loss.backward()
                 self.optimizer_G.step()
 
-                G_loss_dict = {'adv_loss': adv_loss,
+                G_loss_dict = {'adv_loss': G_adv_loss,
                                'content_loss': content_loss,
                                'style_loss': style_loss,
                                'recon_loss': recon_loss,
@@ -666,7 +665,7 @@ class Trial:
                                             gen_meter.as_dict('val'),
                                             i + epoch * len(self.dataloader))
                     self.writer.flush()
-                    G_loss_arr = np.append(G_loss_arr, adv_loss.item())
+                    G_loss_arr = np.append(G_loss_arr, G_adv_loss.item())
                     self.eval_image(i + epoch * len(self.dataloader),
                                     f'{self.init_time} reconstructed img', test_img)
 
