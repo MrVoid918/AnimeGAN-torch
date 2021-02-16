@@ -23,7 +23,7 @@ class Generator(nn.Module):
                                       Upsample(256),  # 256 -> 128
                                       Upsample(128),  # 128 -> 64
                                       Upsample(64),  # 64 -> 32
-                                      ConvINLRelu(32, 3, 3, 1, 1, 1, bias))
+                                      nn.Conv2d(32, 3, 3, 1, 1, bias=bias))
 
         self.net = nn.Sequential(self.downsample,
                                  self.residual,
