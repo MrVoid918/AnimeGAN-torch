@@ -24,7 +24,6 @@ class ImageBuffer():
 
     def query(self, images: torch.Tensor):
         sample_index = sample(range(self.num_images), images.shape[0])
-        print(sample_index)
         sample_images = torch.stack([self.images[i] for i in sample_index])
         for i in range(len(sample_index)):
             self.images[sample_index[i]] = images[i].cpu()
