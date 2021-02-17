@@ -25,6 +25,7 @@ from model.generator import Generator
 from optimizers import GANOptimizer
 from loss import Loss
 from meter import AverageMeter, LossMeters
+from buffer import ImageBuffer
 
 try:
     from apex import amp
@@ -88,6 +89,8 @@ class Trial:
         self.G_lr = G_lr
         self.D_lr = D_lr
         self.grad_set_to_none = grad_set_to_none
+
+        self.buffer = ImageBuffer(self.batch_size * 4, self.batch_size)
 
         self.writer = tensorboard.SummaryWriter(log_dir=log_dir)
         self.init_train_epoch = init_training_epoch
@@ -590,10 +593,16 @@ class Trial:
                 style = style.to(self.device)
                 smooth = smooth.to(self.device)
 
-                generator_output = self.G(train)
+                G_generator_output = self.G(train)
+
+                if len(self.buffer) < self.buffer.pool_size:
+                    self.buffer.add_images(G_generator_output)
+                    D_generator_output = G_generator_output
+                else:
+                    D_generator_output = self.buffer.query(G_generator_output).to(self.device)
+
                 real_adv_loss = self.D(style).view(-1)
-                fake_adv_loss = self.D(generator_output.detach()).view(-1)
-                G_adv_loss = self.D(generator_output).view(-1)
+                fake_adv_loss = self.D(D_generator_output.detach()).view(-1)
                 gray_train = tr.inv_gray_transform(style)
                 grayscale_output = self.D(gray_train).view(-1)
                 gray_smooth_data = tr.inv_gray_transform(smooth)
@@ -624,26 +633,28 @@ class Trial:
                     self.writer.flush()
 
                 self.G.zero_grad(set_to_none=self.grad_set_to_none)
+                G_adv_loss = self.D(G_generator_output).view(-1)
                 G_adv_loss = torch.square(G_adv_loss - 1.).mean() * adv_weight
 
                 if 'style_loss' in G_loss:
-                    style_loss = self.loss.style_loss(generator_output, style) * style_weight
+                    style_loss = self.loss.style_loss(G_generator_output, style) * style_weight
                 else:
                     style_loss = 0.
 
                 if 'content_loss' in G_loss:
-                    content_loss = self.loss.content_loss(generator_output, train) * content_weight
+                    content_loss = self.loss.content_loss(
+                        G_generator_output, train) * content_weight
                 else:
                     content_loss = 0.
 
                 if 'recon_loss' in G_loss:
                     recon_loss = self.loss.reconstruction_loss(
-                        generator_output, train) * recon_weight
+                        G_generator_output, train) * recon_weight
                 else:
                     recon_loss = 0.
 
                 if 'tv_loss' in G_loss:
-                    tv_loss = self.loss.tv_loss(generator_output) * tv_weight
+                    tv_loss = self.loss.tv_loss(G_generator_output) * tv_weight
                 else:
                     tv_loss = 0.
 
