@@ -40,6 +40,7 @@ class Trial:
                  log_dir: str = './logs',
                  device: str = "cuda:0",
                  batch_size: int = 2,
+                 buffer_size: int = 16,
                  init_lr: float = 0.5,
                  G_lr: float = 0.0004,
                  D_lr: float = 0.0008,
@@ -90,7 +91,7 @@ class Trial:
         self.D_lr = D_lr
         self.grad_set_to_none = grad_set_to_none
 
-        self.buffer = ImageBuffer(self.batch_size * 4, self.batch_size)
+        self.buffer = ImageBuffer(buffer_size, self.batch_size)
 
         self.writer = tensorboard.SummaryWriter(log_dir=log_dir)
         self.init_train_epoch = init_training_epoch
