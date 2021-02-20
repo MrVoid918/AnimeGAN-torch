@@ -5,7 +5,13 @@ import torch
 
 class Generator(nn.Module):
 
-    def __init__(self, bias=False):
+    def __init__(self,
+                 res_fmap_size=256,
+                 n_resblock=4,
+                 bias=False):
+        """
+        args: res_fmap_size: Feature map size of resblock inputs.
+        n_resblock: Number of resblocks"""
         super(Generator, self).__init__()
         self.downsample = nn.Sequential(ConvINLRelu(3, 64, 3, 1, 2, 1, bias=bias),
                                         ConvINLRelu(64, 128, 3, 1, 2, 1, bias),
@@ -19,12 +25,15 @@ class Generator(nn.Module):
                                       InvertedResidual(512, 512, 1, 1, 2),
                                       InvertedResidual(512, 512, 1, 1, 2))
         """
+        self.residual = nn.Sequential(*[InvertedResidual(res_fmap_size, res_fmap_size, 1, 1, 2)
+                                        for i in range(n_resblock)])
+        """
         self.residual = nn.Sequential(InvertedResidual(256, 256, 1, 1, 2),
                                       InvertedResidual(256, 256, 1, 1, 2),
                                       InvertedResidual(256, 256, 1, 1, 2),
                                       InvertedResidual(256, 256, 1, 1, 2),
                                       InvertedResidual(256, 256, 1, 1, 2),
-                                      InvertedResidual(256, 256, 1, 1, 2))
+                                      InvertedResidual(256, 256, 1, 1, 2))"""
 
         self.upsample = nn.Sequential(  # Upsample(512),  # 512->256
             Upsample(256),  # 256 -> 128
