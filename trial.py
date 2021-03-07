@@ -14,7 +14,7 @@ import torch
 from torch.utils.data import DataLoader
 import torch.utils.tensorboard as tensorboard
 from torchvision import transforms
-from torch.optim.lr_scheduler import OneCycleLR
+from torch.optim.lr_scheduler import OneCycleLR, ExponentialLR
 import json
 
 import data_transform as tr
@@ -80,7 +80,7 @@ class Trial:
         self.init_model_weights()
 
         self.optimizer_G = GANOptimizer(optim_type, self.G.parameters(),
-                                        lr=G_lr, betas=(0.5, 0.999), amsgrad=False)
+                                        lr=G_lr, betas=(0.5, 0.999), amsgrad=True)
         self.optimizer_D = GANOptimizer(optim_type, self.D.parameters(),
                                         lr=D_lr, betas=(0.5, 0.999), amsgrad=True)
 
@@ -560,7 +560,7 @@ class Trial:
     def GAN_NOGAN(self,
                   epochs: int = 1,
                   GAN_G_lr: float = 0.00008,
-                  GAN_D_lr: float = 0.000016,
+                  GAN_D_lr: float = 0.00016,
                   D_loss: List[str] = ["real_adv_loss", "fake_adv_loss", "gray_loss", "edge_loss"],
                   adv_weight: float = 300.,
                   edge_weight: float = 0.1,
@@ -579,6 +579,9 @@ class Trial:
 
         for g in self.optimizer_D.param_groups:
             g['lr'] = GAN_D_lr
+
+        scheduler_D = ExponentialLR(self.optimizer_D, gamma=0.99)
+        scheduler_G = ExponentialLR(self.optimizer_G, gamma=0.99)
 
         update_duration = len(self.dataloader) // 20
 
@@ -612,7 +615,7 @@ class Trial:
                 real_adv_loss = torch.square(real_adv_loss - 1.).mean() * 1.7 * adv_weight
                 fake_adv_loss = torch.square(fake_adv_loss).mean() * 1.7 * adv_weight
                 gray_loss = torch.square(grayscale_output).mean() * 1.7 * adv_weight
-                edge_loss = torch.square(smoothed_output).mean() * 1.0 * adv_weight
+                edge_loss = torch.square(smoothed_output).mean() * 2.0 * adv_weight
 
                 total_D_loss = real_adv_loss + fake_adv_loss + gray_loss + edge_loss
                 total_D_loss.backward()
@@ -680,6 +683,9 @@ class Trial:
                     G_loss_arr = np.append(G_loss_arr, G_adv_loss.item())
                     self.eval_image(i + epoch * len(self.dataloader),
                                     f'{self.init_time} reconstructed img', test_img)
+
+            scheduler_D.step()
+            scheduler_G.step()
 
         self.save_trial(epoch, f'GAN_NG_{self.init_time}')
 
