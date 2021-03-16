@@ -13,7 +13,7 @@ class Generator(nn.Module):
         args: res_fmap_size: Feature map size of resblock inputs.
         n_resblock: Number of resblocks"""
         super(Generator, self).__init__()
-        self.downsample = nn.Sequential(ConvINLRelu(3, 32, 3, 1, 2, 1, bias=bias),
+        self.downsample = nn.Sequential(ConvINLRelu(3, 32, 3, 1, 1, 1, bias=bias),
                                         ConvINLRelu(32, 64, 3, 1, 2, 1, bias=bias),
                                         ConvINLRelu(64, 128, 3, 1, 2, 1, bias))
         # ConvINLRelu(128, 256, 3, 1, 2, 1, bias),)
