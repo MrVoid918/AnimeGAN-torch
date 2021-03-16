@@ -44,6 +44,8 @@ class Trial:
                  init_lr: float = 0.5,
                  G_lr: float = 0.0004,
                  D_lr: float = 0.0008,
+                 res_fmap_size: int = 128,
+                 n_resblock: int = 4,
                  level: str = "O1",
                  patch: bool = False,
                  init_training_epoch: int = 10,
@@ -70,7 +72,8 @@ class Trial:
 
         self.device = torch.device(device) if torch.cuda.is_available() else torch.device('cpu')
 
-        self.G = Generator().to(self.device)
+        self.G = Generator(res_fmap_size=res_fmap_size,
+                           n_resblock=n_resblock).to(self.device)
         self.patch = patch
         if self.patch:
             self.D = PatchDiscriminator().to(self.device)
@@ -564,6 +567,7 @@ class Trial:
                   D_loss: List[str] = ["real_adv_loss", "fake_adv_loss", "gray_loss", "edge_loss"],
                   adv_weight: float = 300.,
                   edge_weight: float = 0.1,
+                  gamma: float = 0.99,
                   G_loss: List[str] = ["adv_loss", "content_loss", "style_loss", "recon_loss"],
                   style_weight: float = 20.,
                   content_weight: float = 1.2,
@@ -580,8 +584,8 @@ class Trial:
         for g in self.optimizer_D.param_groups:
             g['lr'] = GAN_D_lr
 
-        scheduler_D = ExponentialLR(self.optimizer_D, gamma=0.99)
-        scheduler_G = ExponentialLR(self.optimizer_G, gamma=0.99)
+        scheduler_D = ExponentialLR(self.optimizer_D, gamma=gamma)
+        scheduler_G = ExponentialLR(self.optimizer_G, gamma=gamma)
 
         update_duration = len(self.dataloader) // 20
 

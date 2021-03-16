@@ -13,9 +13,10 @@ class Generator(nn.Module):
         args: res_fmap_size: Feature map size of resblock inputs.
         n_resblock: Number of resblocks"""
         super(Generator, self).__init__()
-        self.downsample = nn.Sequential(ConvINLRelu(3, 64, 3, 1, 2, 1, bias=bias),
-                                        ConvINLRelu(64, 128, 3, 1, 2, 1, bias),
-                                        ConvINLRelu(128, 256, 3, 1, 2, 1, bias),)
+        self.downsample = nn.Sequential(ConvINLRelu(3, 32, 3, 1, 2, 1, bias=bias),
+                                        ConvINLRelu(32, 64, 3, 1, 2, 1, bias=bias),
+                                        ConvINLRelu(64, 128, 3, 1, 2, 1, bias))
+        # ConvINLRelu(128, 256, 3, 1, 2, 1, bias),)
         # ConvINLRelu(256, 512, 3, 1, 2, 1, bias))
         """
         self.residual = nn.Sequential(InvertedResidual(512, 512, 1, 1, 2),
@@ -36,7 +37,7 @@ class Generator(nn.Module):
                                       InvertedResidual(256, 256, 1, 1, 2))"""
 
         self.upsample = nn.Sequential(  # Upsample(512),  # 512->256
-            Upsample(256),  # 256 -> 128
+            # Upsample(256),  # 256 -> 128
             Upsample(128),  # 128 -> 64
             Upsample(64),  # 64 -> 32
             nn.Conv2d(32, 3, 3, 1, 1, bias=bias))
