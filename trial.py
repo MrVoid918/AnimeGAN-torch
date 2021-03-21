@@ -67,7 +67,7 @@ class Trial:
         self.dataloader = DataLoader(self.dataset,
                                      batch_size=batch_size,
                                      shuffle=True,
-                                     num_workers=4,
+                                     num_workers=2,
                                      pin_memory=pin_memory)
 
         self.device = torch.device(device) if torch.cuda.is_available() else torch.device('cpu')
