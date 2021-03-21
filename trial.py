@@ -614,12 +614,12 @@ class Trial:
                 gray_train = tr.inv_gray_transform(style)
                 grayscale_output = self.D(gray_train).view(-1)
                 gray_smooth_data = tr.inv_gray_transform(smooth)
-                smoothed_output = self.D(smooth).view(-1)
+                smoothed_output = self.D(gray_smooth_data).view(-1)
 
                 real_adv_loss = torch.square(real_adv_loss - 1.).mean() * 1.7 * adv_weight
                 fake_adv_loss = torch.square(fake_adv_loss).mean() * 1.7 * adv_weight
                 gray_loss = torch.square(grayscale_output).mean() * 1.7 * adv_weight
-                edge_loss = torch.square(smoothed_output).mean() * 2.0 * adv_weight
+                edge_loss = torch.square(smoothed_output).mean() * 1.0 * adv_weight
 
                 total_D_loss = real_adv_loss + fake_adv_loss + gray_loss + edge_loss
                 total_D_loss.backward()
