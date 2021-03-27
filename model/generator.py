@@ -20,7 +20,7 @@ class Generator(nn.Module):
         downsample_blocks = [ConvINLRelu(3, base_fmap, 3, 1, 1, 1, bias=bias)]
 
         for i in range(int(math.log2(base_fmap)), int(math.log2(res_fmap_size))):
-            downsample_blocks.append(ConvINLRelu(2 ** i, 2 ** (i+1), 3, 1, 1, 1, bias=bias))
+            downsample_blocks.append(ConvINLRelu(2 ** i, 2 ** (i+1), 3, 1, 2, 1, bias=bias))
         self.downsample = nn.Sequential(*downsample_blocks)
 
         """
